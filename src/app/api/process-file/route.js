@@ -2,7 +2,7 @@ import { createClient } from '@/utils/supabase/server'
 import { google } from '@ai-sdk/google'
 import { embed } from 'ai'
 import pdf from 'pdf-parse'
-import XLSX from 'xlsx'
+import * as XLSX from 'xlsx'
 
 // Server-side AI model
 const aiEmbeddingModel = google.textEmbedding('text-embedding-004', {
@@ -30,7 +30,7 @@ export async function POST(request) {
 
     // Verify user is authenticated
     console.log('🔐 [PROCESS-FILE] Verifying user authentication...')
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     console.log('👤 [PROCESS-FILE] Auth result:', {
@@ -73,17 +73,39 @@ export async function POST(request) {
 
     // Generate embeddings for all chunks
     console.log('🧠 [PROCESS-FILE] Generating embeddings for chunks...')
+    console.log('🔧 [EMBEDDING] AI model configuration:', {
+      modelName: 'text-embedding-004',
+      hasApiKey: !!process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+      apiKeyLength: process.env.GOOGLE_GENERATIVE_AI_API_KEY?.length
+    })
+
     const embeddings = await Promise.all(
       chunks.map(async (chunk, index) => {
-        console.log(`🔄 [PROCESS-FILE] Processing chunk ${index + 1}/${chunks.length}`)
-        const { embedding } = await embed({
-          model: aiEmbeddingModel,
-          value: chunk,
-        })
-        return embedding
+        console.log(`🔄 [EMBEDDING] Processing chunk ${index + 1}/${chunks.length}`)
+        console.log(`📝 [EMBEDDING] Chunk preview (first 100 chars): "${chunk.substring(0, 100)}..."`)
+
+        try {
+          const startTime = Date.now()
+          const result = await embed({
+            model: aiEmbeddingModel,
+            value: chunk,
+          })
+          const endTime = Date.now()
+
+          console.log(`✅ [EMBEDDING] Chunk ${index + 1} embedded successfully in ${endTime - startTime}ms`)
+          console.log(`📊 [EMBEDDING] Embedding vector length: ${result.embedding?.length}`)
+          console.log(`🎯 [EMBEDDING] First 5 embedding values: [${result.embedding?.slice(0, 5).map(v => v.toFixed(4)).join(', ')}...]`)
+
+          return result.embedding
+        } catch (error) {
+          console.error(`❌ [EMBEDDING] Failed to embed chunk ${index + 1}:`, error.message)
+          console.error(`🔍 [EMBEDDING] Error details:`, error)
+          throw error
+        }
       })
     )
-    console.log('✅ [PROCESS-FILE] All embeddings generated')
+    console.log('✅ [PROCESS-FILE] All embeddings generated successfully!')
+    console.log(`📈 [EMBEDDING] Total embeddings: ${embeddings.length}, Each vector length: ${embeddings[0]?.length}`)
 
     // Create chunk objects
     console.log('📦 [PROCESS-FILE] Creating chunk objects...')
@@ -101,16 +123,32 @@ export async function POST(request) {
 
     // Store chunks in database
     console.log('💾 [PROCESS-FILE] Storing chunks in database...')
+    console.log(`📊 [DATABASE] Inserting ${processedChunks.length} chunks into document_chunks table`)
+    console.log(`🔍 [DATABASE] Sample chunk structure:`, {
+      keys: Object.keys(processedChunks[0]),
+      datasetId: processedChunks[0].dataset_id,
+      fileId: processedChunks[0].file_id,
+      contentLength: processedChunks[0].content.length,
+      embeddingLength: processedChunks[0].embedding.length,
+      chunkIndex: processedChunks[0].chunk_index
+    })
+
     const { data, error } = await supabase
       .from('document_chunks')
       .insert(processedChunks)
       .select()
 
     if (error) {
-      console.error('❌ [PROCESS-FILE] Failed to store chunks:', error)
+      console.error('❌ [DATABASE] Failed to store chunks:', error)
+      console.error('🔍 [DATABASE] Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details
+      })
       throw error
     }
-    console.log('✅ [PROCESS-FILE] Chunks stored successfully')
+    console.log('✅ [DATABASE] Chunks stored successfully!')
+    console.log(`📈 [DATABASE] Inserted ${data?.length} chunks, returned IDs: ${data?.slice(0, 3).map(c => c.id.substring(0, 8)).join(', ')}...`)
 
     // Update file status to completed
     console.log('🏁 [PROCESS-FILE] Updating file status to completed...')
@@ -141,7 +179,7 @@ export async function POST(request) {
     const { fileId } = await request.json().catch(() => ({}))
     if (fileId) {
       try {
-        const supabase = createClient()
+        const supabase = await createClient()
         await supabase
           .from('dataset_files')
           .update({ status: 'failed' })
@@ -223,9 +261,22 @@ async function extractTextFromFile(fileData, filePath) {
       return excelText
 
     case 'pdf':
-      // Parse PDF files
-      const pdfData = await pdf(buffer)
-      return pdfData.text
+      // Parse PDF files with dynamic import
+      try {
+        console.log('📄 [PDF] Dynamically importing pdf-parse...')
+        const pdfParse = (await import('pdf-parse')).default
+        console.log('✅ [PDF] pdf-parse imported successfully')
+
+        console.log('📄 [PDF] Parsing PDF buffer, size:', buffer.length)
+        const pdfData = await pdfParse(buffer)
+        console.log('✅ [PDF] PDF parsed successfully, text length:', pdfData.text.length)
+        console.log('📊 [PDF] PDF info:', { pages: pdfData.numpages, version: pdfData.version })
+
+        return pdfData.text
+      } catch (error) {
+        console.error('❌ [PDF] PDF parsing failed:', error.message)
+        throw new Error(`Failed to parse PDF: ${error.message}`)
+      }
 
     default:
       // Try to read as text

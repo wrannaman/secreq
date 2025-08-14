@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/toast-provider';
 import { createClient } from '@/utils/supabase/client';
+import { useAuth } from '@/hooks/use-auth';
 import {
   File,
   FileText,
@@ -19,7 +20,8 @@ import {
   Clock,
   Database,
   MoreHorizontal,
-  X
+  X,
+  RefreshCw
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -42,16 +44,13 @@ export function DatasetFileViewer({ datasetId, datasetName, onFileDeleted }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileChunks, setFileChunks] = useState([]);
   const [chunksLoading, setChunksLoading] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
   const supabase = createClient();
+  const pollIntervalRef = useRef(null);
 
-  useEffect(() => {
-    if (datasetId) {
-      fetchFiles();
-    }
-  }, [datasetId]);
-
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('dataset_files')
@@ -71,7 +70,44 @@ export function DatasetFileViewer({ datasetId, datasetName, onFileDeleted }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [datasetId, supabase, toast]);
+
+  useEffect(() => {
+    if (datasetId) {
+      fetchFiles();
+    }
+  }, [datasetId, fetchFiles]);
+
+  // Simple polling logic without dependencies on files array
+  useEffect(() => {
+    const processingCount = files.filter(file => file.status === 'processing').length;
+
+    if (processingCount > 0 && !pollIntervalRef.current) {
+      console.log(`🔄 [POLLING] Starting polling for ${processingCount} processing files`);
+      setIsPolling(true);
+
+      pollIntervalRef.current = setInterval(() => {
+        console.log('📡 [POLLING] Checking file status...');
+        fetchFiles();
+      }, 5000);
+    } else if (processingCount === 0 && pollIntervalRef.current) {
+      console.log('✅ [POLLING] No processing files, stopping poll');
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+      setIsPolling(false);
+    }
+
+    return () => {
+      if (pollIntervalRef.current) {
+        console.log('⏹️ [POLLING] Component cleanup - stopping poll');
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+        setIsPolling(false);
+      }
+    };
+  }, [files.length > 0 ? files.filter(f => f.status === 'processing').length : 0, fetchFiles]);
+
+  // Removed duplicate fetchFiles function
 
   const deleteFile = async (fileId, fileName) => {
     try {
@@ -154,6 +190,72 @@ export function DatasetFileViewer({ datasetId, datasetName, onFileDeleted }) {
     }
   };
 
+  const retryProcessing = async (file) => {
+    try {
+      console.log(`🔄 [RETRY] Starting retry for file: ${file.name || file.file_name}`);
+
+      // Reset file status to processing
+      const { error: updateError } = await supabase
+        .from('dataset_files')
+        .update({
+          status: 'processing'
+        })
+        .eq('id', file.id);
+
+      if (updateError) throw updateError;
+
+      // Delete existing chunks if any
+      const { error: deleteError } = await supabase
+        .from('document_chunks')
+        .delete()
+        .eq('file_id', file.id);
+
+      if (deleteError) throw deleteError;
+
+      console.log(`🗑️ [RETRY] Cleared existing chunks for file: ${file.name || file.file_name}`);
+
+      // Call the processing API
+      const response = await fetch('/api/process-file', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileId: file.id,
+          filePath: file.file_path,
+          datasetId: file.dataset_id,
+          userId: user?.id
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to retry processing');
+      }
+
+      console.log(`✅ [RETRY] Successfully initiated retry for: ${file.name || file.file_name}`);
+      toast.success(`Retrying processing for ${file.name || file.file_name}`);
+
+      // Refresh files to show updated status
+      fetchFiles();
+    } catch (error) {
+      console.error('❌ [RETRY] Retry processing error:', error);
+      toast.error('Failed to retry processing', {
+        description: error.message
+      });
+
+      // Reset status to failed if retry failed (without error_message column)
+      await supabase
+        .from('dataset_files')
+        .update({
+          status: 'failed'
+        })
+        .eq('id', file.id);
+
+      fetchFiles();
+    }
+  };
+
   // Auto-reset stuck files when component loads
   useEffect(() => {
     if (datasetId) {
@@ -172,6 +274,35 @@ export function DatasetFileViewer({ datasetId, datasetName, onFileDeleted }) {
     return <File className="h-5 w-5 text-gray-500" />;
   };
 
+  const getStatusBadge = (status, chunks) => {
+    switch (status) {
+      case 'completed':
+        return (
+          <Badge variant="secondary" className="bg-green-100 text-green-800">
+            ✅ {chunks} chunks
+          </Badge>
+        );
+      case 'processing':
+        return (
+          <Badge variant="secondary" className="bg-blue-100 text-blue-800 animate-pulse">
+            🔄 Processing...
+          </Badge>
+        );
+      case 'failed':
+        return (
+          <Badge variant="destructive">
+            ❌ Failed
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline">
+            ⏳ Pending
+          </Badge>
+        );
+    }
+  };
+
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -180,18 +311,7 @@ export function DatasetFileViewer({ datasetId, datasetName, onFileDeleted }) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'completed':
-        return <Badge variant="default" className="bg-green-500">Processed</Badge>;
-      case 'processing':
-        return <Badge variant="secondary">Processing</Badge>;
-      case 'failed':
-        return <Badge variant="destructive">Failed</Badge>;
-      default:
-        return <Badge variant="secondary">Unknown</Badge>;
-    }
-  };
+  // Removed duplicate getStatusBadge function
 
   const filteredFiles = files.filter(file =>
     file.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -219,8 +339,15 @@ export function DatasetFileViewer({ datasetId, datasetName, onFileDeleted }) {
               <Database className="h-5 w-5" />
               Files in {datasetName}
             </CardTitle>
-            <CardDescription>
-              {files.length} file(s) • {files.reduce((sum, f) => sum + (f.document_chunks?.[0]?.count || 0), 0)} content chunks
+            <CardDescription className="flex items-center gap-2">
+              <span>
+                {files.length} file(s) • {files.reduce((sum, f) => sum + (f.document_chunks?.[0]?.count || 0), 0)} content chunks
+              </span>
+              {isPolling && (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 animate-pulse">
+                  📡 Auto-updating...
+                </Badge>
+              )}
             </CardDescription>
           </div>
           {files.length > 0 && (
@@ -265,7 +392,7 @@ export function DatasetFileViewer({ datasetId, datasetName, onFileDeleted }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <p className="font-medium text-sm truncate">{file.name}</p>
-                      {getStatusBadge(file.status)}
+                      {getStatusBadge(file.status, file.document_chunks?.[0]?.count || 0)}
                     </div>
 
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -299,6 +426,12 @@ export function DatasetFileViewer({ datasetId, datasetName, onFileDeleted }) {
                           <Eye className="h-4 w-4 mr-2" />
                           View Details
                         </DropdownMenuItem>
+                        {(file.status === 'failed' || file.status === 'processing') && (
+                          <DropdownMenuItem onClick={() => retryProcessing(file)}>
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Retry Processing
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem>
                           <Download className="h-4 w-4 mr-2" />
                           Download
@@ -356,7 +489,7 @@ export function DatasetFileViewer({ datasetId, datasetName, onFileDeleted }) {
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Status</label>
-                      <div className="mt-1">{getStatusBadge(selectedFile.status)}</div>
+                      <div className="mt-1">{getStatusBadge(selectedFile.status, selectedFile.document_chunks?.[0]?.count || 0)}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Upload Date</label>
