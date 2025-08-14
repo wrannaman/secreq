@@ -1,0 +1,27 @@
+---
+description: description of the project's necessary features
+globs:
+alwaysApply: false
+---
+Here’s the **20 must-have feature list** we locked in earlier for Secreq:
+
+1. **User Auth & Orgs** — Supabase Auth with org/project separation and RBAC (Owner, Editor, Viewer).
+2. **Upload Questionnaire** — Support CSV and XLSX uploads with multi-sheet detection.
+3. **Field Mapping UI** — Map uploaded columns to system fields (`question`, `answer`, `section`, etc.).
+4. **Question/Answer DB** — Store parsed questions + answers in Postgres with metadata (type, section, status).
+5. **Vector Index** — Each approved Q/A pair is stored as a vector row in Milvus with provenance metadata.
+6. **Collateral Management** — Upload & store policy docs/evidence into named **Datasets** (folders).
+7. **Dataset Selection** — On new questionnaire upload, select which datasets to use for retrieval.
+8. **RAG Pipeline** — Retrieve top-k chunks/QAs from selected datasets → draft answers with citations + confidence.
+9. **Answer Workshop UI** — Left pane: chat; right pane: mini-Excel grid of questions/draft answers/confidence.
+10. **Inline Editing** — Edit AI answers in the grid; mark “Needs SME”; approve answers individually or in bulk.
+11. **Citations Viewer** — Click answer to view retrieved snippets with file/section anchors.
+12. **Auto-Save & Versioning** — All edits auto-saved; track version history per answer.
+13. **Export to Original Format** — Re-generate file in same structure/columns as uploaded.
+14. **ZIP Export Pack** — Export includes answered file + citations.json + optional memo.md.
+15. **Chat Over Artifact** — Chat pane bound to current questionnaire + datasets; can reference cell numbers or sections.
+16. **Chat Memory** — Conversation history stored per questionnaire; summarization for long threads.
+17. **Confidence Gates** — Highlight low-confidence answers; bulk-filter to review only those.
+18. **Mini-Excel Features** — Column sorting/filtering; inline cell search; keyboard navigation.
+19. **Dataset Re-use** — Add approved answers from this questionnaire back into QA library for future retrieval.
+20. **Audit Log** — Record all uploads, edits, exports, and provider/model settings per run.
