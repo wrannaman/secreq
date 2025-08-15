@@ -40,6 +40,7 @@ export default function QuestionnaireWorkbenchPage() {
   const [saving, setSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const autosaveRef = useRef(null);
+  const lastSavedHashRef = useRef(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -184,9 +185,34 @@ export default function QuestionnaireWorkbenchPage() {
     );
   };
 
+  const hashRows = (rows) => {
+    try {
+      let h = 2166136261 >>> 0;
+      const maxRows = Math.min(rows.length, 500);
+      for (let r = 0; r < maxRows; r++) {
+        const cells = rows[r]?.cells || [];
+        const maxCols = Math.min(cells.length, 200);
+        for (let c = 0; c < maxCols; c++) {
+          const v = String(cells[c]?.value ?? '');
+          for (let i = 0; i < v.length; i++) {
+            h ^= v.charCodeAt(i);
+            h = (h * 16777619) >>> 0;
+          }
+          h ^= 31; // delimiter
+        }
+        h ^= 127;
+      }
+      return h.toString(16);
+    } catch (_) {
+      return String(Date.now());
+    }
+  };
+
   const autosave = async (rows, immediate = false) => {
     if (!id) return;
     if (!Array.isArray(rows)) rows = viewerRef.current?.getRows?.() || [];
+    const currentHash = hashRows(rows);
+    if (lastSavedHashRef.current === currentHash) return;
     if (autosaveRef.current) clearTimeout(autosaveRef.current);
     const run = async () => {
       try {
@@ -199,6 +225,7 @@ export default function QuestionnaireWorkbenchPage() {
         });
         if (!res.ok) throw new Error('Save failed');
         setLastSavedAt(new Date());
+        lastSavedHashRef.current = currentHash;
       } catch (_) {
         // soft-fail; toast is noisy for autosave
       } finally {
