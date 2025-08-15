@@ -17,10 +17,11 @@ export function AuthenticatedNav() {
 
   const navLinks = [
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/questionnaires", label: "Questionnaires" },
     { href: "/datasets", label: "Datasets" },
-    { href: "/integrations", label: "Integrations" },
+    // { href: "/integrations", label: "Integrations" },
     { href: "/team", label: "Team" },
-    { href: "/billing", label: "Billing" },
+    // { href: "/billing", label: "Billing" },
   ];
 
   return (
@@ -28,7 +29,7 @@ export function AuthenticatedNav() {
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <Link href="/dashboard" className="text-lg font-semibold text-foreground mr-4">
-            App Template
+            Sec Req
           </Link>
           <nav className="flex items-center gap-4">
             {navLinks.map((link) => (

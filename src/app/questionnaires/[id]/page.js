@@ -1,0 +1,499 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
+import { AuthGuard } from "@/components/auth-guard";
+import { AuthenticatedNav } from "@/components/layout/authenticated-nav";
+import { createClient } from "@/utils/supabase/client";
+import { useToast } from "@/components/toast-provider";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import SpreadsheetViewer from "@/components/questionnaire/spreadsheet-viewer";
+import { Button } from "@/components/ui/button";
+import { Sparkles, Square } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/use-auth";
+import { generateAnswer } from "@/lib/rag";
+
+export default function QuestionnaireWorkbenchPage() {
+  const { id } = useParams();
+  const { toast } = useToast();
+  const { user, currentOrganization } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [questionnaire, setQuestionnaire] = useState(null);
+  const [signedUrl, setSignedUrl] = useState(null);
+  const [allDatasets, setAllDatasets] = useState([]);
+  const [selectedDatasetIds, setSelectedDatasetIds] = useState([]);
+  const viewerRef = useRef(null);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editCells, setEditCells] = useState([]);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiAnswer, setAiAnswer] = useState("");
+  const [questionRange, setQuestionRange] = useState(null); // {col, start, end}
+  const [answerRange, setAnswerRange] = useState(null);
+  const [selectionMode, setSelectionMode] = useState("question");
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState({ total: 0, done: 0, cancelled: false });
+
+  useEffect(() => {
+    let isMounted = true;
+    const run = async () => {
+      if (!id) return;
+      const supabase = createClient();
+      try {
+        const { data, error } = await supabase
+          .from("questionnaires")
+          .select("id, name, status, original_file_name, original_file_path, created_at, selected_datasets")
+          .eq("id", id)
+          .single();
+        if (error) throw error;
+        if (!data?.original_file_path) throw new Error("No original file path set");
+        const { data: urlData, error: urlError } = await supabase
+          .storage
+          .from("secreq")
+          .createSignedUrl(data.original_file_path, 60 * 15);
+        if (urlError) throw urlError;
+        if (isMounted) {
+          setQuestionnaire(data);
+          setSignedUrl(urlData?.signedUrl || null);
+          setSelectedDatasetIds(Array.isArray(data.selected_datasets) ? data.selected_datasets : []);
+        }
+      } catch (err) {
+        toast.error("Unable to load questionnaire", { description: err.message });
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    run();
+    return () => {
+      isMounted = false;
+    };
+  }, [id, toast]);
+
+  useEffect(() => {
+    const loadDatasets = async () => {
+      if (!currentOrganization?.org_id) return;
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("datasets")
+        .select("id, name")
+        .eq("organization_id", currentOrganization.org_id)
+        .order("created_at", { ascending: false });
+      if (error) {
+        toast.error("Failed to load datasets", { description: error.message });
+        return;
+      }
+      setAllDatasets(data || []);
+    };
+    loadDatasets();
+  }, [currentOrganization?.org_id, toast]);
+
+  const persistSelectedDatasets = async (ids) => {
+    if (!id) return;
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("questionnaires")
+      .update({ selected_datasets: ids })
+      .eq("id", id);
+    if (error) {
+      toast.error("Failed to save datasets", { description: error.message });
+    } else {
+      toast.success("Datasets saved");
+    }
+  };
+
+  const handleToggleDataset = async (datasetId) => {
+    const next = selectedDatasetIds.includes(datasetId)
+      ? selectedDatasetIds.filter((d) => d !== datasetId)
+      : [...selectedDatasetIds, datasetId];
+    setSelectedDatasetIds(next);
+    persistSelectedDatasets(next);
+  };
+
+  const openEditForSelectedRow = () => {
+    if (!viewerRef.current || selectedRows.length !== 1) return;
+    const r = selectedRows[0];
+    const values = [];
+    for (let c = 1; c <= 12; c++) {
+      const val = viewerRef.current.getCellValue(r, c);
+      values.push({ col: c, value: val });
+    }
+    setEditCells(values);
+    setIsEditOpen(true);
+  };
+
+  const saveRowEdits = () => {
+    if (!viewerRef.current) return;
+    const r = selectedRows[0];
+    editCells.forEach(({ col, value }) => viewerRef.current.setCellValue(r, col, value));
+    setIsEditOpen(false);
+    toast.success("Row updated");
+  };
+
+  const sendRowToAI = async () => {
+    if (!viewerRef.current || !user) return;
+    const r = selectedRows[0];
+    const parts = [];
+    for (let c = 1; c <= 12; c++) {
+      const v = viewerRef.current.getCellValue(r, c);
+      if (v && String(v).trim()) parts.push(String(v).trim());
+    }
+    const questionText = parts.join(" | ");
+    try {
+      setAiAnswer("");
+      setAiOpen(true);
+      const supabase = createClient();
+      const selectedDatasets = allDatasets.filter(d => selectedDatasetIds.includes(d.id));
+      const result = await generateAnswer(questionText, selectedDatasets, id, supabase, user.id);
+      setAiAnswer(result?.answer || "");
+    } catch (err) {
+      toast.error("AI failed", { description: err.message });
+    }
+  };
+
+  const selectedRowRange = () => {
+    if (!selectedRows || selectedRows.length === 0) return null;
+    const sorted = [...selectedRows].sort((a, b) => a - b);
+    return { start: sorted[0], end: sorted[sorted.length - 1] };
+  };
+
+  const numberToLetters = (num) => {
+    let letters = "";
+    let n = num || 0;
+    while (n > 0) {
+      const rem = (n - 1) % 26;
+      letters = String.fromCharCode(65 + rem) + letters;
+      n = Math.floor((n - 1) / 26);
+    }
+    return letters;
+  };
+
+  const canSend = () => {
+    return Boolean(
+      questionRange && answerRange &&
+      questionRange.col && answerRange.col &&
+      questionRange.start != null && answerRange.start != null &&
+      (questionRange.end - questionRange.start) === (answerRange.end - answerRange.start) &&
+      selectedDatasetIds.length > 0
+    );
+  };
+
+  const buildContextForRow = (rowIndex) => {
+    // Build question string from question range cell, plus header and section context
+    const questionCell = viewerRef.current?.getCellValue(rowIndex, questionRange.col) || '';
+    const headerRow = 1; // simple heuristic; could be improved using spreadsheet-viewer metadata
+    const header = viewerRef.current?.getCellValue(headerRow, questionRange.col) || '';
+    // Try to capture the left-most non-empty heading in same row as a section label (heuristic)
+    let section = '';
+    for (let c = 1; c < questionRange.col; c++) {
+      const val = viewerRef.current?.getCellValue(rowIndex, c);
+      if (val && String(val).trim().length > 0) { section = val; break; }
+    }
+    // Include the entire source row cells to give RAG richer context
+    const rowCells = [];
+    for (let c = 1; c <= Math.min(20, 512); c++) {
+      rowCells.push(viewerRef.current?.getCellValue(rowIndex, c) || '');
+    }
+    return { questionText: String(questionCell || '').trim(), header, section, rowCells };
+  };
+
+  const sendBatchToAI = async () => {
+    if (!canSend() || !user) return;
+    const supabase = createClient();
+    const selectedDatasets = allDatasets.filter(d => selectedDatasetIds.includes(d.id));
+    const start = questionRange.start;
+    const end = questionRange.end;
+    const count = end - start + 1;
+    setIsProcessing(true);
+    setProgress({ total: count, done: 0, cancelled: false });
+
+    const indices = Array.from({ length: count }, (_, i) => start + i);
+    const BATCH = 5;
+    for (let i = 0; i < indices.length; i += BATCH) {
+      if (progress.cancelled) break;
+      const chunk = indices.slice(i, i + BATCH);
+      await Promise.all(chunk.map(async (rowIndex) => {
+        const ctx = buildContextForRow(rowIndex);
+        const rowLines = ctx.rowCells
+          .map((v, idx) => `${idx + 1}. ${String(v || '').trim()}`)
+          .filter(line => line.replace(/^\d+\.\s*/, '').trim().length > 0)
+          .join('\n');
+        const prompt = `You are answering a security questionnaire.\n${ctx.section ? `Section: ${ctx.section}\n` : ''}${ctx.header ? `Header: ${ctx.header}\n` : ''}\n${rowLines ? `Row Context (cells):\n${rowLines}\n\n` : ''}Question: ${ctx.questionText}\nKeep answer concise (1-3 sentences).`;
+        try {
+          const res = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt,
+              organizationId: currentOrganization?.org_id,
+              datasetIds: selectedDatasetIds,
+              queryText: ctx.questionText,
+            })
+          });
+          const json = await res.json();
+          const answer = json.answer || json.text || '';
+          // Write to spreadsheet answer cell
+          viewerRef.current?.setCellValue(rowIndex, answerRange.col, answer);
+        } catch (err) {
+          // Leave cell unchanged on error
+        } finally {
+          setProgress(prev => ({ ...prev, done: Math.min(prev.total, prev.done + 1) }));
+        }
+      }));
+    }
+    setIsProcessing(false);
+    setSendDialogOpen(false);
+    // Clear selections after successful processing
+    viewerRef.current?.clearSelections?.();
+    setQuestionRange(null);
+    setAnswerRange(null);
+    setSelectionMode('question');
+    setSelectedRows([]);
+    toast.success('AI processing completed');
+  };
+
+  return (
+    <AuthGuard>
+      <div className="min-h-screen bg-background">
+        <AuthenticatedNav />
+        <main className="container mx-auto px-10 py-3 max-w-full max-h-full">
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading questionnaire…</p>
+            </div>
+          ) : !questionnaire || !signedUrl ? (
+            <Card className="max-w-3xl mx-auto">
+              <CardContent className="p-12 text-center">
+                <p className="text-muted-foreground">Unable to open the original file.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl">Workbench</CardTitle>
+                  <CardDescription>{questionnaire.name}</CardDescription>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-muted-foreground">Datasets:</span>
+                  {allDatasets.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">None</span>
+                  ) : (
+                    allDatasets.map(ds => {
+                      const selected = selectedDatasetIds.includes(ds.id)
+                      return (
+                        <Button
+                          key={ds.id}
+                          size="sm"
+                          variant={selected ? "default" : "outline"}
+                          className="h-7 px-2 text-xs"
+                          onClick={() => handleToggleDataset(ds.id)}
+                          title={selected ? "Selected" : "Click to select"}
+                        >
+                          {ds.name}
+                          {selected && <Badge variant="secondary" className="ml-1 text-[10px]">✔</Badge>}
+                        </Button>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <CardTitle>Original File Preview</CardTitle>
+                      <CardDescription>
+                        Click and drag to select cells vertically in a single column for questions or answers.
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <Button size="sm" variant={selectionMode === 'question' ? 'default' : 'outline'} className="h-7 px-2" onClick={() => setSelectionMode('question')}>Select Questions</Button>
+                      <Button size="sm" variant={selectionMode === 'answer' ? 'default' : 'outline'} className="h-7 px-2" onClick={() => setSelectionMode('answer')}>Select Answers</Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <SpreadsheetViewer
+                    ref={viewerRef}
+                    signedUrl={signedUrl}
+                    filename={questionnaire.original_file_name}
+                    selectionMode={selectionMode}
+                    onSelectionChange={setSelectedRows}
+                    onRangeSelect={(range) => {
+                      if (!range) { setQuestionRange(null); setAnswerRange(null); return; }
+                      if (range.mode === 'question') {
+                        setQuestionRange(range);
+                        setSelectionMode('answer');
+                        toast.info('Now select the answer range', { description: 'Pick the destination cells for the AI answers.' });
+                      }
+                      if (range.mode === 'answer') setAnswerRange(range);
+                    }}
+                    highlightRanges={{ question: questionRange, answer: answerRange }}
+                    onClearSelections={() => { setQuestionRange(null); setAnswerRange(null); setSelectionMode('question'); }}
+                  />
+                  <div className="mt-3 flex items-center flex-wrap gap-3 text-xs">
+                    {selectedRowRange() && (
+                      <div className="px-2 py-1 border border-muted rounded bg-muted">
+                        Rows: {`${selectedRowRange().start}–${selectedRowRange().end}`}
+                      </div>
+                    )}
+                    <div className={`px-2 py-1 border border-muted rounded ${questionRange ? 'bg-blue-50 dark:bg-blue-950/20' : 'bg-muted'}`}>
+                      Q Range: {questionRange ? `${numberToLetters(questionRange.col)}${questionRange.start}–${numberToLetters(questionRange.col)}${questionRange.end}` : '—'}
+                    </div>
+                    <div className={`px-2 py-1 border border-muted rounded ${answerRange ? 'bg-emerald-50 dark:bg-emerald-950/20' : 'bg-muted'}`}>
+                      A Range: {answerRange ? `${numberToLetters(answerRange.col)}${answerRange.start}–${numberToLetters(answerRange.col)}${answerRange.end}` : '—'}
+                    </div>
+                    <div className="ml-auto flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => { viewerRef.current?.clearSelections?.(); }}>Clear</Button>
+                      {(() => {
+                        const ready = canSend();
+                        const mismatch = !!(questionRange && answerRange && ((questionRange.end - questionRange.start) !== (answerRange.end - answerRange.start)));
+                        return (
+                          <>
+                            {mismatch && (
+                              <span className="text-xs text-destructive mr-2">Ranges must be the same length</span>
+                            )}
+                            <Button
+                              onClick={() => setSendDialogOpen(true)}
+                              disabled={!ready}
+                              className={`${ready ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/30 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-muted text-muted-foreground'} h-9 px-4`}
+                            >
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              Send to AI
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const payload = { rows: viewerRef.current?.getRows?.() || [], meta: { questionRange, answerRange, selectedDatasetIds } }
+                                  const res = await fetch(`/api/questionnaires/${id}/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+                                  if (!res.ok) throw new Error('Save failed')
+                                  const json = await res.json()
+                                  toast.success('Snapshot saved', { description: json.version })
+                                } catch (e) {
+                                  toast.error('Save failed', { description: e.message })
+                                }
+                              }}
+                              className="ml-2 h-9"
+                            >
+                              Save Snapshot
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const rows = viewerRef.current?.getRows?.() || []
+                                  const res = await fetch(`/api/questionnaires/${id}/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows, filename: `${questionnaire.name || 'questionnaire'}-export.csv` }) })
+                                  if (!res.ok) throw new Error('Export failed')
+                                  const blob = await res.blob()
+                                  const url = URL.createObjectURL(blob)
+                                  const a = document.createElement('a')
+                                  a.href = url
+                                  a.download = `${questionnaire.name || 'questionnaire'}-export.csv`
+                                  document.body.appendChild(a)
+                                  a.click()
+                                  URL.revokeObjectURL(url)
+                                  a.remove()
+                                } catch (e) {
+                                  toast.error('Export failed', { description: e.message })
+                                }
+                              }}
+                              className="h-9"
+                            >
+                              Export CSV
+                            </Button>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                <DialogContent className="sm:max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle className="text-base">Edit Row {selectedRows[0]}</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid grid-cols-2 gap-3">
+                    {editCells.map((cell) => (
+                      <div key={cell.col} className="space-y-1">
+                        <div className="text-[11px] text-muted-foreground">Col {cell.col}</div>
+                        <Textarea
+                          value={cell.value || ""}
+                          onChange={(e) => setEditCells(prev => prev.map(c => c.col === cell.col ? { ...c, value: e.target.value } : c))}
+                          className="min-h-16 text-xs"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <DialogFooter>
+                    <Button size="sm" onClick={saveRowEdits}>Save</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+                <DialogContent className="sm:max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle className="text-base">AI Answer</DialogTitle>
+                  </DialogHeader>
+                  <Textarea readOnly value={aiAnswer} className="min-h-32 text-sm" />
+                </DialogContent>
+              </Dialog>
+
+              {/* Send to AI Summary (front-end only) */}
+              <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
+                <DialogContent className="sm:max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle className="text-base">Confirm Send to AI</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-2 text-sm">
+                    <div>Question range: <strong>{questionRange ? `${numberToLetters(questionRange.col)}${questionRange.start}–${numberToLetters(questionRange.col)}${questionRange.end}` : '—'}</strong></div>
+                    <div>Answer range: <strong>{answerRange ? `${numberToLetters(answerRange.col)}${answerRange.start}–${numberToLetters(answerRange.col)}${answerRange.end}` : '—'}</strong></div>
+                    <div>
+                      Datasets: <strong>{allDatasets.filter(d => selectedDatasetIds.includes(d.id)).map(d => d.name).join(', ') || '—'}</strong>
+                    </div>
+                    <div className="text-muted-foreground">This will batch the selected questions and place answers into the chosen answer range.</div>
+                  </div>
+                  <DialogFooter>
+                    <Button size="sm" variant="secondary" onClick={() => setSendDialogOpen(false)}>Cancel</Button>
+                    <Button size="sm" disabled={!canSend()} onClick={() => { setSendDialogOpen(false); sendBatchToAI(); }}>Send</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {isProcessing && (
+                <div className="fixed top-16 left-0 right-0 z-40">
+                  <div className="mx-auto max-w-5xl px-4">
+                    <div className="flex items-center gap-3 p-3 border rounded bg-background/95 backdrop-blur">
+                      <div className="flex-1">
+                        <div className="text-xs text-muted-foreground">Generating answers… {progress.done}/{progress.total}</div>
+                        <div className="w-full h-2 bg-muted rounded mt-1 overflow-hidden">
+                          <div className="h-full bg-blue-600" style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
+                        </div>
+                      </div>
+                      <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => { setProgress(p => ({ ...p, cancelled: true })); setIsProcessing(false); }}>
+                        <Square className="h-3 w-3 mr-1" /> Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+      </div>
+    </AuthGuard>
+  );
+}
+
+

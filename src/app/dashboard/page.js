@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,8 +10,6 @@ import { useToast } from "@/components/toast-provider";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import {
-  Settings,
-  Users,
   FileText,
   BarChart3,
   Plus,
@@ -22,7 +20,8 @@ import {
   Clock,
   AlertTriangle,
   FolderOpen,
-  MessageCircle
+  MessageCircle,
+  Download
 } from "lucide-react";
 import { AuthenticatedNav } from "@/components/layout/authenticated-nav";
 
@@ -38,12 +37,20 @@ function DashboardContent() {
     avgConfidence: 0
   });
   const [loading, setLoading] = useState(true);
+  const fileInputRef = useRef(null);
+
+  const lastLoadedOrgId = useRef(null);
 
   useEffect(() => {
-    if (currentOrganization) {
-      loadDashboardData();
-    }
-  }, [currentOrganization]);
+    const orgId = currentOrganization?.org_id;
+    if (!orgId) return;
+
+    if (lastLoadedOrgId.current === orgId) return; // prevent duplicate loads in StrictMode
+    lastLoadedOrgId.current = orgId;
+    loadDashboardData();
+  }, [currentOrganization?.org_id, user?.id]);
+
+
 
   const loadDashboardData = async () => {
     const supabase = createClient()
@@ -157,9 +164,67 @@ function DashboardContent() {
             <h1 className="text-3xl font-bold text-foreground mb-2">
               SecReq Dashboard
             </h1>
-            <p className="text-muted-foreground">
-              Manage your security questionnaires and compliance documentation
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-muted-foreground">
+                Respond to security questionnaires with AI-powered answers
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.csv"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !currentOrganization || !user) return;
+                    const supabase = createClient();
+                    try {
+                      const baseName = file.name.replace(/\.[^/.]+$/, "");
+                      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+                      const unique = (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                      const filePath = `questionnaires/${currentOrganization.org_id}/${unique}-${safeName}`;
+
+                      const { error: uploadError } = await supabase
+                        .storage
+                        .from('secreq')
+                        .upload(filePath, file, {
+                          cacheControl: '3600',
+                          upsert: false,
+                          contentType: file.type || 'application/octet-stream'
+                        });
+                      if (uploadError) throw uploadError;
+
+                      const { data: inserted, error: insertError } = await supabase
+                        .from('questionnaires')
+                        .insert({
+                          organization_id: currentOrganization.org_id,
+                          name: baseName,
+                          original_file_name: file.name,
+                          original_file_path: filePath,
+                          status: 'draft',
+                          created_by: user.id
+                        })
+                        .select('id')
+                        .single();
+                      if (insertError) throw insertError;
+
+                      window.location.href = `/questionnaires/${inserted.id}`;
+                    } catch (err) {
+                      toast.error('Upload failed', { description: err.message });
+                    } finally {
+                      e.target.value = '';
+                    }
+                  }}
+                />
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  size="sm"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  New / Upload Questionnaire
+                </Button>
+              </div>
+            </div>
           </div>
 
           {/* Stats */}
@@ -174,7 +239,7 @@ function DashboardContent() {
               <CardContent>
                 <div className="text-2xl font-bold">{stats.totalQuestionnaires}</div>
                 <p className="text-xs text-muted-foreground">
-                  Active security assessments
+                  Questionnaires to complete
                 </p>
               </CardContent>
             </Card>
@@ -225,39 +290,8 @@ function DashboardContent() {
             </Card>
           </div>
 
-          {/* Quick Actions */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Plus className="h-5 w-5" />
-                  Quick Actions
-                </CardTitle>
-                <CardDescription>
-                  Start a new security assessment
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button asChild className="w-full">
-                  <Link href="/questionnaires/new">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Questionnaire
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full">
-                  <Link href="/datasets">
-                    <Database className="h-4 w-4 mr-2" />
-                    Manage Datasets
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full">
-                  <Link href="/team">
-                    <Users className="h-4 w-4 mr-2" />
-                    Team Settings
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
+          {/* Main Content - Two Columns */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {/* Recent Questionnaires */}
             <Card>
               <CardHeader>
@@ -268,7 +302,7 @@ function DashboardContent() {
                   </Button>
                 </div>
                 <CardDescription>
-                  Your latest security assessments
+                  Questionnaires you're working on
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -277,17 +311,21 @@ function DashboardContent() {
                     <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <h3 className="font-medium mb-2">No questionnaires yet</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Create your first questionnaire to get started
+                      Upload a questionnaire you received to get started
                     </p>
-                    <Button asChild size="sm">
-                      <Link href="/questionnaires/new">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Questionnaire
-                      </Link>
+                    <Button size="sm" onClick={() => fileInputRef.current?.click()}>
+                      <Upload className="h-4 w-4 mr-2" />
+                      New / Upload Questionnaire
                     </Button>
                   </div>
                 ) : (
                   <div className="space-y-3">
+                    <div className="mb-4">
+                      <Button className="w-full" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="h-4 w-4 mr-2" />
+                        New / Upload Questionnaire
+                      </Button>
+                    </div>
                     {questionnaires.map((questionnaire) => {
                       const StatusIcon = getStatusIcon(questionnaire.status);
                       return (
@@ -307,8 +345,8 @@ function DashboardContent() {
                               <StatusIcon className="h-3 w-3 mr-1" />
                               {questionnaire.status}
                             </Badge>
-                            <Button asChild variant="ghost" size="sm">
-                              <Link href={`/questionnaires/${questionnaire.id}/workshop`}>
+                            <Button asChild variant="default" size="sm">
+                              <Link href={`/questionnaires/${questionnaire.id}`}>
                                 Open
                               </Link>
                             </Button>

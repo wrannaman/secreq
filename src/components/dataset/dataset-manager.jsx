@@ -38,18 +38,32 @@ export function DatasetManager() {
   const [newDatasetDescription, setNewDatasetDescription] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const { currentOrganization } = useAuth();
+  const { currentOrganization, organizations, user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const supabase = createClient();
 
+  console.log('🔍 [DATASET-MANAGER] Render state:', {
+    currentOrganization: currentOrganization?.org_id,
+    organizationsCount: organizations?.length,
+    user: user?.id,
+    authLoading
+  });
+
   useEffect(() => {
-    if (currentOrganization) {
+    console.log('🔍 [DATASET-MANAGER] Effect triggered:', { orgId: currentOrganization?.org_id });
+    if (currentOrganization?.org_id) {
+      console.log('📊 [DATASET-MANAGER] Fetching datasets for org:', currentOrganization.org_id);
       fetchDatasets();
+    } else {
+      console.log('❌ [DATASET-MANAGER] No organization found, skipping fetch');
+      setLoading(false);
     }
-  }, [currentOrganization]);
+  }, [currentOrganization?.org_id]); // Only depend on the org_id, not the whole object
 
   const fetchDatasets = async () => {
+    console.log('🚀 [DATASET-MANAGER] Starting fetchDatasets...');
     try {
+      console.log('📡 [DATASET-MANAGER] Making Supabase query...');
       const { data, error } = await supabase
         .from('datasets')
         .select(`
@@ -59,9 +73,13 @@ export function DatasetManager() {
         .eq('organization_id', currentOrganization.org_id)
         .order('created_at', { ascending: false });
 
+      console.log('📋 [DATASET-MANAGER] Query result:', { data, error });
+
       if (error) throw error;
       setDatasets(data || []);
+      console.log('✅ [DATASET-MANAGER] Datasets loaded:', data?.length || 0);
     } catch (error) {
+      console.error('💥 [DATASET-MANAGER] Error fetching datasets:', error);
       toast.error('Failed to load datasets', {
         description: error.message
       });

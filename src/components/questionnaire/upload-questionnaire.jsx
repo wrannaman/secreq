@@ -10,6 +10,53 @@ import { Upload, FileSpreadsheet, File, X, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 
+// AI-powered Excel structure analysis
+const analyzeExcelStructureWithAI = async (rawData) => {
+  try {
+    // Prepare sample of first 20 rows for AI analysis
+    const sampleRows = rawData.slice(0, 20).map((row, index) => ({
+      rowIndex: index,
+      content: row.map(cell => String(cell || '').substring(0, 100)) // Limit cell content
+    }));
+
+    const response = await fetch('/api/analyze-excel-structure', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows: sampleRows })
+    });
+
+    if (!response.ok) {
+      throw new Error('AI analysis failed');
+    }
+
+    const result = await response.json();
+    return {
+      headerRowIndex: result.headerRowIndex || 0,
+      questionColumnIndex: result.questionColumnIndex || 0,
+      confidence: result.confidence || 'low'
+    };
+  } catch (error) {
+    console.error('🚨 AI structure analysis failed, falling back to simple logic:', error);
+
+    // Fallback: simple logic for header detection
+    for (let i = 0; i < Math.min(10, rawData.length); i++) {
+      const row = rawData[i];
+      if (!row) continue;
+
+      const cellTexts = row.map(cell => String(cell || '').toLowerCase());
+      const hasQuestionKeyword = cellTexts.some(text =>
+        text.includes('question') || text.includes('response') || text.includes('answer')
+      );
+
+      if (hasQuestionKeyword && cellTexts.filter(t => t.length > 2).length >= 2) {
+        return { headerRowIndex: i, questionColumnIndex: 0, confidence: 'fallback' };
+      }
+    }
+
+    return { headerRowIndex: 0, questionColumnIndex: 0, confidence: 'fallback' };
+  }
+};
+
 export function UploadQuestionnaire({ onUpload, onSheetSelection }) {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState(null);
@@ -114,38 +161,124 @@ export function UploadQuestionnaire({ onUpload, onSheetSelection }) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
 
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
           const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true, cellNF: false, cellText: false });
 
-          const sheetsData = workbook.SheetNames.map(sheetName => {
+          const sheetsData = await Promise.all(workbook.SheetNames.map(async (sheetName) => {
             const worksheet = workbook.Sheets[sheetName];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-            if (jsonData.length === 0) return null;
+            // Get the range of the worksheet
+            const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
 
-            const headers = jsonData[0];
-            const rows = jsonData.slice(1).filter(row =>
-              row.some(cell => cell !== null && cell !== undefined && cell !== '')
-            );
+            // Convert to array format first to analyze structure
+            const rawData = XLSX.utils.sheet_to_json(worksheet, {
+              header: 1,
+              defval: '',
+              raw: false,
+              dateNF: 'yyyy-mm-dd'
+            });
 
-            const formattedData = rows.map(row => {
+            if (rawData.length === 0) return null;
+
+            // Use AI to intelligently find the header row and data structure
+            const structureAnalysis = await analyzeExcelStructureWithAI(rawData);
+            let headerRowIndex = structureAnalysis.headerRowIndex;
+
+            console.log(`🤖 AI found headers at row ${headerRowIndex}:`, structureAnalysis);
+
+            const headers = rawData[headerRowIndex]
+              .map((header, index) => {
+                if (header === null || header === undefined || header === '') {
+                  return `Column_${index + 1}`;
+                }
+                return String(header).trim();
+              })
+              .filter((header, index, arr) => {
+                // Remove duplicate headers by appending number
+                const originalHeader = header;
+                let counter = 1;
+                while (arr.slice(0, index).includes(header)) {
+                  header = `${originalHeader}_${counter}`;
+                  counter++;
+                }
+                arr[index] = header;
+                return true;
+              });
+
+            // Get data rows (skip header and any empty rows before it)
+            const dataRows = rawData.slice(headerRowIndex + 1).filter(row => {
+              if (!row || row.length === 0) return false;
+
+              // Keep row if it has substantive content
+              const nonEmptyCount = row.filter(cell =>
+                cell !== null && cell !== undefined && cell !== '' &&
+                String(cell).trim() !== ''
+              ).length;
+
+              // Must have at least 1 non-empty cell
+              if (nonEmptyCount === 0) return false;
+
+              // For questionnaires, the first column usually contains the question
+              const firstCol = String(row[0] || '').trim();
+
+              // Skip rows that are obviously not questions
+              if (firstCol.length < 5) return false; // Too short
+              if (/^(row|#|\d+\.?\d*$)/.test(firstCol.toLowerCase())) return false; // Just numbers/row labels
+              if (/^(total|sum|count|average)/.test(firstCol.toLowerCase())) return false; // Summary rows
+
+              return true;
+            });
+
+            if (dataRows.length === 0) return null;
+
+            // Convert to object format with proper column handling
+            const formattedData = dataRows.map((row, rowIndex) => {
               const obj = {};
-              headers.forEach((header, index) => {
-                obj[header] = row[index] || '';
+              headers.forEach((header, colIndex) => {
+                let cellValue = row[colIndex];
+
+                // Handle different cell types
+                if (cellValue === null || cellValue === undefined) {
+                  cellValue = '';
+                } else if (typeof cellValue === 'number') {
+                  // Check if it's a date (Excel dates are numbers)
+                  if (cellValue > 25569 && cellValue < 73050) { // Reasonable date range
+                    try {
+                      const date = new Date((cellValue - 25569) * 86400 * 1000);
+                      if (!isNaN(date.getTime())) {
+                        cellValue = date.toISOString().split('T')[0];
+                      }
+                    } catch (e) {
+                      // Keep as number if date conversion fails
+                    }
+                  }
+                } else if (typeof cellValue === 'boolean') {
+                  cellValue = cellValue ? 'Yes' : 'No';
+                } else {
+                  cellValue = String(cellValue).trim();
+                }
+
+                obj[header] = cellValue;
               });
               return obj;
             });
 
             return {
               name: sheetName,
-              data: formattedData
+              data: formattedData,
+              meta: {
+                headerRowIndex,
+                totalRows: rawData.length,
+                dataRows: formattedData.length,
+                columns: headers.length
+              }
             };
-          }).filter(Boolean);
+          })).then(results => results.filter(Boolean));
 
           if (sheetsData.length === 0) {
-            reject(new Error('No data found in the file'));
+            reject(new Error('No usable data found in the file. Please check that your Excel file contains tabular data.'));
             return;
           }
 
@@ -223,15 +356,22 @@ export function UploadQuestionnaire({ onUpload, onSheetSelection }) {
           {sheets.length > 1 && (
             <div className="space-y-2">
               <Label>Select Sheet</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 {sheets.map((sheet) => (
                   <Button
                     key={sheet.name}
                     variant={selectedSheet === sheet.name ? "default" : "outline"}
                     size="sm"
                     onClick={() => handleSheetSelect(sheet.name)}
+                    className="justify-start h-auto p-3"
                   >
-                    {sheet.name} ({sheet.data.length} rows)
+                    <div className="text-left">
+                      <div className="font-medium">{sheet.name}</div>
+                      <div className="text-xs opacity-70">
+                        {sheet.data.length} rows • {sheet.meta?.columns || 0} columns
+                        {sheet.meta?.headerRowIndex > 0 && ` • Headers on row ${sheet.meta.headerRowIndex + 1}`}
+                      </div>
+                    </div>
                   </Button>
                 ))}
               </div>
@@ -241,14 +381,19 @@ export function UploadQuestionnaire({ onUpload, onSheetSelection }) {
           {preview && (
             <div className="space-y-2">
               <Label>Data Preview</Label>
+              <div className="text-xs text-muted-foreground mb-2">
+                Found {Object.keys(preview[0] || {}).length} columns: {Object.keys(preview[0] || {}).join(', ')}
+              </div>
               <div className="border rounded-md overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto max-w-full">
+                  <table className="min-w-full text-sm border-collapse">
                     <thead className="bg-muted">
                       <tr>
                         {Object.keys(preview[0] || {}).map((header) => (
-                          <th key={header} className="px-3 py-2 text-left font-medium">
-                            {header}
+                          <th key={header} className="px-3 py-2 text-left font-medium border-r border-muted-foreground/20 min-w-[120px] max-w-[200px]">
+                            <div className="truncate" title={header}>
+                              {header}
+                            </div>
                           </th>
                         ))}
                       </tr>
@@ -257,9 +402,11 @@ export function UploadQuestionnaire({ onUpload, onSheetSelection }) {
                       {preview.map((row, index) => (
                         <tr key={index} className="border-t">
                           {Object.values(row).map((cell, cellIndex) => (
-                            <td key={cellIndex} className="px-3 py-2">
-                              {String(cell).substring(0, 50)}
-                              {String(cell).length > 50 && '...'}
+                            <td key={cellIndex} className="px-3 py-2 border-r border-muted-foreground/10 min-w-[120px] max-w-[200px]">
+                              <div className="truncate" title={String(cell)}>
+                                {String(cell).substring(0, 30)}
+                                {String(cell).length > 30 && '...'}
+                              </div>
                             </td>
                           ))}
                         </tr>
@@ -269,7 +416,7 @@ export function UploadQuestionnaire({ onUpload, onSheetSelection }) {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">
-                Showing first 5 rows of {sheets.find(s => s.name === selectedSheet)?.data.length || 0} total rows
+                Showing first 5 rows of {sheets.find(s => s.name === selectedSheet)?.data.length || 0} total rows • Scroll horizontally to see all columns
               </p>
             </div>
           )}

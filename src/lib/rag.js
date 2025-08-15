@@ -120,24 +120,24 @@ async function generateAnswerWithContext(question, context, userId) {
     const systemPrompt = `You are an expert security compliance assistant helping organizations answer security questionnaires.
 
 Your role is to:
-1. Provide accurate, comprehensive answers based on the provided documentation
-2. Reference specific sources when possible
-3. Ensure answers are compliant with security frameworks (SOC2, ISO27001, etc.)
-4. Be concise but thorough
-5. Indicate when information is insufficient to provide a complete answer
+1. Provide accurate, CONCISE answers based on the provided documentation
+2. Keep responses to 1-3 sentences unless more detail is specifically requested
+3. Reference specific sources when possible
+4. Ensure answers are compliant with security frameworks (SOC2, ISO27001, etc.)
+5. Be direct and actionable, avoiding lengthy explanations
 
 Guidelines:
 - Always base answers on the provided documentation when available
-- If no relevant documentation is found, provide general best practices
+- If no relevant documentation is found, provide brief best practices
 - Include specific citations to source materials
 - Use professional, confident language appropriate for security audits
-- Structure answers clearly with bullet points when helpful
+- IMPORTANT: Keep answers short and focused
 
 Context: ${contextPrompt || 'No specific documentation provided.'}`;
 
     const userPrompt = `Question: ${question}
 
-Please provide a comprehensive answer based on the documentation provided. Include specific references to sources when possible.`;
+Please provide a CONCISE answer (1-3 sentences) based on the documentation provided. Include specific references to sources when possible.`;
 
     // Use server-side text generation API
     const response = await fetch('/api/generate', {

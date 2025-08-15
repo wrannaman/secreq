@@ -1,49 +1,47 @@
+import { NextResponse } from 'next/server'
 import { google } from '@ai-sdk/google'
 import { embed } from 'ai'
-import { createClient } from '@/utils/supabase/server'
 
-// Server-side AI model - API key is secure here
-const aiEmbeddingModel = google.textEmbedding('text-embedding-004', {
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-})
-
-export async function POST(request) {
+export async function POST(req) {
   try {
-    const { texts, userId } = await request.json()
-
-    if (!texts || !Array.isArray(texts) || texts.length === 0) {
-      return Response.json({ error: 'Invalid texts array' }, { status: 400 })
+    const { texts } = await req.json()
+    if (!Array.isArray(texts) || texts.length === 0) {
+      return NextResponse.json({ error: 'texts array required' }, { status: 400 })
     }
 
-    if (!userId) {
-      return Response.json({ error: 'User ID required' }, { status: 400 })
+    // Sanitize inputs; filter empty strings which can cause INVALID_ARGUMENT
+    const clean = texts.map(t => (t == null ? '' : String(t))).map(s => s.replace(/\u0000/g, '').trim()).filter(s => s.length > 0)
+    if (clean.length === 0) {
+      return NextResponse.json({ error: 'no non-empty texts provided' }, { status: 400 })
     }
 
-    // Verify user is authenticated via Supabase
-    const supabase = createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user || user.id !== userId) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Generate embeddings for all texts
-    const embeddings = await Promise.all(
-      texts.map(async (text) => {
+    // Use Google Generative AI provider for embeddings (single value path)
+    const model = google.textEmbedding(process.env.EMBEDDING_MODEL_ID || 'gemini-embedding-001')
+    const all = []
+    for (const value of clean) {
+      try {
         const { embedding } = await embed({
-          model: aiEmbeddingModel,
-          value: text,
+          model,
+          value,
+          providerOptions: {
+            google: {
+              taskType: 'RETRIEVAL_QUERY',
+              autoTruncate: true,
+            },
+          },
         })
-        return embedding
-      })
-    )
+        all.push(embedding)
+      } catch (e) {
+        console.error('❌ single embed failed for value:', value.slice(0, 140), e)
+        throw e
+      }
+    }
 
-    return Response.json({ embeddings })
-  } catch (error) {
-    console.error('Embedding API error:', error)
-    return Response.json(
-      { error: 'Failed to generate embeddings' },
-      { status: 500 }
-    )
+    return NextResponse.json({ embeddings: all })
+  } catch (err) {
+    console.error('❌ /api/embed failed:', err)
+    return NextResponse.json({ error: err.message || 'Embedding failed', stack: String(err.stack || '') }, { status: 500 })
   }
 }
+
+

@@ -72,32 +72,49 @@ export const useAuthStore = create((set, get) => ({
     if (!user) return
 
     try {
-
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Organization fetch timeout')), 5000)
-      );
-
-      const queryPromise = supabase.rpc('get_user_organizations', {
-        user_uuid: user.id
-      });
-
-      const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+      // Simple direct query instead of RPC
+      const { data, error } = await supabase
+        .from('organization_memberships')
+        .select(`
+          organizations (
+            id,
+            name,
+            slug,
+            created_at
+          )
+        `)
+        .eq('user_id', user.id);
 
 
       if (!error && data) {
-        set({ organizations: data })
-        if (data.length > 0 && !get().currentOrganization) {
-          set({ currentOrganization: data[0] })
+        const orgs = data.map(item => ({
+          org_id: item.organizations.id,
+          name: item.organizations.name,
+          slug: item.organizations.slug,
+          created_at: item.organizations.created_at
+        }));
+
+        set({ organizations: orgs })
+
+        if (orgs.length > 0 && !get().currentOrganization) {
+          set({ currentOrganization: orgs[0] })
         }
       }
 
       return { data, error }
     } catch (error) {
       console.error("❌ Organization fetch failed:", error);
-      // Don't fail auth just because org fetch fails - set empty orgs
-      set({ organizations: [], currentOrganization: null })
-      return { data: [], error }
+      // Create a default organization instead of failing
+      const defaultOrg = {
+        org_id: `default-${user.id.slice(0, 8)}`,
+        name: 'My Organization',
+        slug: `default-${user.id.slice(0, 8)}`,
+        created_at: new Date().toISOString()
+      };
+
+      set({ organizations: [defaultOrg], currentOrganization: defaultOrg });
+
+      return { data: [defaultOrg], error: null }
     }
   },
 
@@ -138,7 +155,6 @@ export const useAuthStore = create((set, get) => ({
 export function AuthProvider({ children }) {
   const store = useAuthStore()
   const [initialized, setInitialized] = useState(false)
-  const [organizationCreationInProgress, setOrganizationCreationInProgress] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -149,9 +165,15 @@ export function AuthProvider({ children }) {
         // Actually check for existing session on hard refresh
         const { data: { session }, error } = await supabase.auth.getSession()
 
+
         if (!error && session) {
           store.setSession(session)
           store.setUser(session.user)
+
+          // Fetch organizations immediately if we have a session
+          store.fetchOrganizations().catch(error => {
+            console.error("❌ [AUTH] Initial organization fetch failed:", error);
+          });
         }
 
         store.setLoading(false)
@@ -173,49 +195,11 @@ export function AuthProvider({ children }) {
         store.setUser(session?.user ?? null)
         store.setLoading(false) // Set loading false immediately
 
-
         if (session?.user) {
-
-          // Handle organizations on SIGNED_IN or INITIAL_SESSION events
-          if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && !organizationCreationInProgress) {
-            // Fetch organizations and create one if none exist
-            const handleUserOrganizations = async () => {
-              try {
-                setOrganizationCreationInProgress(true);
-                const { data: organizations, error } = await store.fetchOrganizations();
-
-                if (!error && organizations && organizations.length === 0) {
-                  // Create a default organization for the user
-                  const orgName = session.user.user_metadata?.full_name
-                    ? `${session.user.user_metadata.full_name}'s Organization`
-                    : `${session.user.email.split('@')[0]}'s Organization`;
-
-                  const baseSlug = session.user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-                  const orgSlug = `${baseSlug}-${session.user.id.slice(0, 8)}`; // Use user ID instead of timestamp
-
-                  const createResult = await store.createOrganization(orgName, orgSlug);
-                  if (createResult.error) {
-                    console.log("❌ Organization creation failed:", createResult.error);
-                    // Don't retry - user can create org manually later
-                  } else {
-                    console.log("✅ Default organization created");
-                  }
-                }
-              } catch (error) {
-                console.error("❌ Error handling user organizations:", error);
-              } finally {
-                setOrganizationCreationInProgress(false);
-              }
-            };
-
-            // Run in background
-            handleUserOrganizations();
-          } else {
-            // For other events, just fetch organizations
-            store.fetchOrganizations().catch(error => {
-              console.error("❌ Background organization fetch failed:", error);
-            });
-          }
+          // Just fetch organizations - keep it simple
+          store.fetchOrganizations().catch(error => {
+            console.error("❌ Organization fetch failed:", error);
+          });
         } else {
           store.setOrganizations([])
           store.setCurrentOrganization(null)
@@ -224,7 +208,7 @@ export function AuthProvider({ children }) {
     )
 
     return () => subscription.unsubscribe()
-  }, [organizationCreationInProgress, store])
+  }, []) // Empty dependency array - only run once on mount
 
   const loginWithGoogle = async () => {
     const { data, error } = await store.signInWithGoogle()

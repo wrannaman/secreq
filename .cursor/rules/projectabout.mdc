@@ -2,3 +2,5 @@
 alwaysApply: true
 ---
 This project is a web application that automates vendor security requests for both sides of the process. Sellers can upload prospect security forms (CSV/XLSX) and get AI-drafted answers from their own policy/QA library for quick review and export in the original format. Buyers can upload completed forms from vendors, auto-score them against internal controls, flag risks, and generate follow-up questions.
+NEVER EVER WRITE FALLBACK CODE
+ALWAYS SUPPORT DARK MODE

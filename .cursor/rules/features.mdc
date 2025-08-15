@@ -3,25 +3,52 @@ description: description of the project's necessary features
 globs:
 alwaysApply: false
 ---
-Here’s the **20 must-have feature list** we locked in earlier for Secreq:
+- 1) Single “Workbench” page
+  - Route: `questionnaires/[id]/workbench`
+  - Replaces mapping/export pages and buttons everywhere (remove old flows)
 
-1. **User Auth & Orgs** — Supabase Auth with org/project separation and RBAC (Owner, Editor, Viewer).
-2. **Upload Questionnaire** — Support CSV and XLSX uploads with multi-sheet detection.
-3. **Field Mapping UI** — Map uploaded columns to system fields (`question`, `answer`, `section`, etc.).
-4. **Question/Answer DB** — Store parsed questions + answers in Postgres with metadata (type, section, status).
-5. **Vector Index** — Each approved Q/A pair is stored as a vector row in Milvus with provenance metadata.
-6. **Collateral Management** — Upload & store policy docs/evidence into named **Datasets** (folders).
-7. **Dataset Selection** — On new questionnaire upload, select which datasets to use for retrieval.
-8. **RAG Pipeline** — Retrieve top-k chunks/QAs from selected datasets → draft answers with citations + confidence.
-9. **Answer Workshop UI** — Left pane: chat; right pane: mini-Excel grid of questions/draft answers/confidence.
-10. **Inline Editing** — Edit AI answers in the grid; mark “Needs SME”; approve answers individually or in bulk.
-11. **Citations Viewer** — Click answer to view retrieved snippets with file/section anchors.
-12. **Auto-Save & Versioning** — All edits auto-saved; track version history per answer.
-13. **Export to Original Format** — Re-generate file in same structure/columns as uploaded.
-14. **ZIP Export Pack** — Export includes answered file + citations.json + optional memo.md.
-15. **Chat Over Artifact** — Chat pane bound to current questionnaire + datasets; can reference cell numbers or sections.
-16. **Chat Memory** — Conversation history stored per questionnaire; summarization for long threads.
-17. **Confidence Gates** — Highlight low-confidence answers; bulk-filter to review only those.
-18. **Mini-Excel Features** — Column sorting/filtering; inline cell search; keyboard navigation.
-19. **Dataset Re-use** — Add approved answers from this questionnaire back into QA library for future retrieval.
-20. **Audit Log** — Record all uploads, edits, exports, and provider/model settings per run.
+- 2) Upload and load originals
+  - Drag/drop or “Choose file” (XLSX/CSV)
+  - Store to Supabase, persist path, return signed URL
+  - Fallback: load existing file by questionnaire if already uploaded
+
+- 3) Exact Excel/CSV viewer
+  - Client-side parse (ExcelJS for XLSX, Papa for CSV) via signed URL ArrayBuffer
+  - Render merges with true colSpan/rowSpan, column resize, keyboard nav, copy/paste
+  - Virtualized grid for large files; dark mode-ready
+
+- 4) Selection-driven mapping
+  - User selects question cells/rows and a target answer column
+  - Quick actions: “Use suggested question/answer columns”, “Set as answer column”
+  - Persist mapping per worksheet in Supabase (`excel_column_mapping`)
+
+- 5) Knowledge base toggle
+  - Dataset selector (multi-select) docked at top
+  - Selected dataset IDs flow into generation requests
+
+- 6) AI generation on demand (and smart prefill)
+  - Button: “Fill answers in selected column”
+  - Batch by selection or detected question rows; stream status; progress per batch
+  - Confidence badges; citations viewer
+
+- 7) Inline edit/accept/retry
+  - Click blue cell to edit inline; Cmd/Ctrl+Enter to save; Esc to cancel
+  - Actions per cell: Accept, Retry with guidance, Revert to original
+  - Copy/paste (Cmd/Ctrl+C/V) across cells; supports multi-cell paste in answer column
+
+- 8) Autosave and change tracking
+  - Store cell-level edits and per-row status (ai_generated/reviewed)
+  - Dirty indicators; undo/redo per session
+  - “Ready to export” checklist (N remaining unfilled/unreviewed)
+
+- 9) Export exact file
+  - POST `/api/export-excel/[id]` to inject answers into the original workbook (preserve formatting/merges/styles)
+  - CSV export path for CSV originals
+  - File name: `<original>_completed.xlsx` (or `.csv`)
+
+- 10) Performance, telemetry, safeguards
+  - Web worker parsing for big files; chunked AI batches; retry/backoff
+  - Robust error toasts; signed URL expiry handling
+  - Analytics on time-to-first-answer and time-to-export; enforce access via Supabase auth
+
+Deliverables: new workbench page and components, updated APIs (`upload`, `signed-url`, `export-excel`), deprecate old mapping/export pages and buttons.

@@ -30,6 +30,7 @@ export function ChatInterface({ questionnaireId, selectedDatasets = [], onClose 
   const messagesEndRef = useRef(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const supabase = createClient();
 
   useEffect(() => {
     loadConversation();
@@ -114,7 +115,6 @@ export function ChatInterface({ questionnaireId, selectedDatasets = [], onClose 
 
     try {
       // Generate AI response
-      const supabase = createClient()
       const aiResponse = await generateAnswer(
         input.trim(),
         selectedDatasets,
@@ -180,13 +180,13 @@ export function ChatInterface({ questionnaireId, selectedDatasets = [], onClose 
   };
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3">
+    <div className="h-full flex flex-col bg-background">
+      <div className="border-b p-4 flex-shrink-0">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
+          <div className="flex items-center gap-2 font-semibold">
             <MessageCircle className="h-5 w-5" />
             Chat Assistant
-          </CardTitle>
+          </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={clearConversation}>
               <RefreshCw className="h-4 w-4" />
@@ -205,25 +205,43 @@ export function ChatInterface({ questionnaireId, selectedDatasets = [], onClose 
             </Badge>
           ))}
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="flex-1 flex flex-col p-0">
+      <div className="flex-1 flex flex-col min-h-0">
         {/* Messages */}
-        <div className="flex-1 overflow-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 && (
             <div className="text-center py-8">
               <Bot className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="font-medium mb-2">AI Assistant Ready</h3>
+              <h3 className="font-medium mb-2">AI Security Expert</h3>
               <p className="text-sm text-muted-foreground">
-                Ask questions about the questionnaire, request answers for specific questions,
-                or get help with sections.
+                I can help you answer security questionnaire questions using your company's
+                documentation and security best practices.
               </p>
               <div className="mt-4 space-y-2 text-xs text-muted-foreground">
-                <p>Try asking:</p>
-                <p>• "Generate an answer for row 5"</p>
-                <p>• "Help with security controls section"</p>
-                <p>• "What evidence is needed for SOC2?"</p>
+                <p className="font-medium">Ask me to:</p>
+                <p>• "Answer question in row 5"</p>
+                <p>• "Improve the answer for data encryption"</p>
+                <p>• "What should we say about our backup procedures?"</p>
+                <p>• "Generate a shorter answer for access controls"</p>
               </div>
+              {selectedDatasets.length > 0 && (
+                <div className="mt-4 p-3 bg-muted rounded-lg">
+                  <p className="text-xs font-medium">Using your data:</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {selectedDatasets.slice(0, 2).map((dataset) => (
+                      <Badge key={dataset.id} variant="outline" className="text-xs">
+                        {dataset.name}
+                      </Badge>
+                    ))}
+                    {selectedDatasets.length > 2 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{selectedDatasets.length - 2} more
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -240,11 +258,11 @@ export function ChatInterface({ questionnaireId, selectedDatasets = [], onClose 
                   className={`rounded-lg p-3 ${message.role === 'user'
                     ? 'bg-primary text-primary-foreground ml-auto'
                     : message.error
-                      ? 'bg-red-50 border border-red-200'
+                      ? 'bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800'
                       : 'bg-muted'
                     }`}
                 >
-                  <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+                  <div className="text-sm whitespace-pre-wrap break-words overflow-wrap-anywhere">{message.content}</div>
 
                   {message.confidence && (
                     <div className="mt-2">
@@ -312,13 +330,13 @@ export function ChatInterface({ questionnaireId, selectedDatasets = [], onClose 
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t">
+        <div className="p-4 border-t flex-shrink-0">
           <div className="flex gap-2">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder="Ask about the questionnaire..."
+              placeholder="Ask me to answer a question, improve an answer, or explain something..."
               disabled={loading}
               className="flex-1"
             />
@@ -331,7 +349,7 @@ export function ChatInterface({ questionnaireId, selectedDatasets = [], onClose 
             </Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
