@@ -37,6 +37,9 @@ export default function QuestionnaireWorkbenchPage() {
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState({ total: 0, done: 0, cancelled: false });
+  const [saving, setSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+  const autosaveRef = useRef(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -181,6 +184,31 @@ export default function QuestionnaireWorkbenchPage() {
     );
   };
 
+  const autosave = async (rows, immediate = false) => {
+    if (!id) return;
+    if (!Array.isArray(rows)) rows = viewerRef.current?.getRows?.() || [];
+    if (autosaveRef.current) clearTimeout(autosaveRef.current);
+    const run = async () => {
+      try {
+        setSaving(true);
+        const payload = { rows, meta: { questionRange, answerRange, selectedDatasetIds } };
+        const res = await fetch(`/api/questionnaires/${id}/save`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('Save failed');
+        setLastSavedAt(new Date());
+      } catch (_) {
+        // soft-fail; toast is noisy for autosave
+      } finally {
+        setSaving(false);
+      }
+    };
+    if (immediate) return run();
+    autosaveRef.current = setTimeout(run, 1200);
+  };
+
   const buildContextForRow = (rowIndex) => {
     // Build question string from question range cell, plus header and section context
     const questionCell = viewerRef.current?.getCellValue(rowIndex, questionRange.col) || '';
@@ -315,6 +343,7 @@ export default function QuestionnaireWorkbenchPage() {
                     <div className="flex items-center gap-2 text-xs">
                       <Button size="sm" variant={selectionMode === 'question' ? 'default' : 'outline'} className="h-7 px-2" onClick={() => setSelectionMode('question')}>Select Questions</Button>
                       <Button size="sm" variant={selectionMode === 'answer' ? 'default' : 'outline'} className="h-7 px-2" onClick={() => setSelectionMode('answer')}>Select Answers</Button>
+                      <span className="ml-3 text-xs text-muted-foreground">{saving ? 'Saving…' : lastSavedAt ? `Saved ${lastSavedAt.toLocaleTimeString()}` : ''}</span>
                     </div>
                   </div>
                 </CardHeader>
@@ -325,6 +354,7 @@ export default function QuestionnaireWorkbenchPage() {
                     filename={questionnaire.original_file_name}
                     selectionMode={selectionMode}
                     onSelectionChange={setSelectedRows}
+                    onRowsChange={(rows) => autosave(rows)}
                     onRangeSelect={(range) => {
                       if (!range) { setQuestionRange(null); setAnswerRange(null); return; }
                       if (range.mode === 'question') {
@@ -391,24 +421,27 @@ export default function QuestionnaireWorkbenchPage() {
                               onClick={async () => {
                                 try {
                                   const rows = viewerRef.current?.getRows?.() || []
-                                  const res = await fetch(`/api/questionnaires/${id}/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows, filename: `${questionnaire.name || 'questionnaire'}-export.csv` }) })
+                                  const columnWidths = viewerRef.current?.getColumnWidths?.() || []
+                                  const merges = viewerRef.current?.getMerges?.() || []
+                                  const res = await fetch(`/api/questionnaires/${id}/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows, columnWidths, merges, filename: `${questionnaire.name || 'questionnaire'}-export.xlsx` }) })
                                   if (!res.ok) throw new Error('Export failed')
                                   const blob = await res.blob()
                                   const url = URL.createObjectURL(blob)
                                   const a = document.createElement('a')
                                   a.href = url
-                                  a.download = `${questionnaire.name || 'questionnaire'}-export.csv`
+                                  a.download = `${questionnaire.name || 'questionnaire'}-export.xlsx`
                                   document.body.appendChild(a)
                                   a.click()
                                   URL.revokeObjectURL(url)
                                   a.remove()
+                                  toast.success('Exported .xlsx')
                                 } catch (e) {
                                   toast.error('Export failed', { description: e.message })
                                 }
                               }}
                               className="h-9"
                             >
-                              Export CSV
+                              Export Excel
                             </Button>
                           </>
                         );

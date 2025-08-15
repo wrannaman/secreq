@@ -351,6 +351,14 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
     getSelectedRows: () => Array.from(selectedRows),
     getCellValue: (rowIndex, colIndex) => rows[rowIndex - 1]?.cells?.[colIndex - 1]?.value || '',
     getColumnWidths: () => widths,
+    getMerges: () => {
+      const out = []
+      mergeMap.forEach((val, key) => {
+        const [r, c] = key.split(":").map(n => parseInt(n, 10))
+        out.push({ row: r, col: c, rowSpan: val?.rowSpan || 1, colSpan: val?.colSpan || 1 })
+      })
+      return out
+    },
     setCellValue: (rowIndex, colIndex, value) => {
       setRows(prev => {
         const next = prev.map(row => ({ ...row, cells: row.cells.map(cell => ({ ...cell })) }))
@@ -469,6 +477,8 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
                               return next
                             })
                             setEditing(null)
+                            // notify parent about changed rows (autosave)
+                            if (onRowsChange) onRowsChange(rows)
                           }}
                           onKeyDown={(e) => {
                             if (e.key === 'Escape') {
