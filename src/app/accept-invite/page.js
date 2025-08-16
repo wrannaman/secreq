@@ -3,6 +3,7 @@
 import { Suspense, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast-provider';
+import { createClient } from '@/utils/supabase/client';
 const apiUrl = process.env.NEXT_PUBLIC_APP_URL;
 
 function AcceptInviteContent() {
@@ -12,26 +13,39 @@ function AcceptInviteContent() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (token) {
-      const accept = async () => {
-        const res = await fetch(`/api/organizations/invites/accept`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          toast({ title: 'Success', description: data.message });
-          router.push('/login');
-        } else {
-          toast({ title: 'Error', description: data.message, variant: 'destructive' });
-          router.push('/');
-        }
-      };
-      accept();
-    } else {
-      router.push('/');
-    }
+    const run = async () => {
+      if (!token) {
+        router.push('/');
+        return;
+      }
+
+      const supabase = createClient();
+      const { data: userData } = await supabase.auth.getUser();
+
+      if (!userData?.user) {
+        try {
+          localStorage.setItem('pending_invite_token', token);
+        } catch { }
+        router.push('/auth/login');
+        return;
+      }
+
+      const res = await fetch(`/api/organizations/invites/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: 'Joined organization', description: data.message });
+        try { localStorage.removeItem('pending_invite_token'); } catch { }
+        router.push('/dashboard');
+      } else {
+        toast({ title: 'Error', description: data.message, variant: 'destructive' });
+        router.push('/');
+      }
+    };
+    run();
   }, [token, router, toast]);
 
   return <div>Accepting invitation...</div>;

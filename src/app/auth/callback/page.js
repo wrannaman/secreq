@@ -59,6 +59,18 @@ function AuthCallbackContent() {
               toast.success("Successfully logged in!", {
                 description: `Welcome ${data.session.user.email}!`
               });
+              // If there is a pending invite, auto-accept it now
+              try {
+                const pendingToken = typeof window !== 'undefined' ? localStorage.getItem('pending_invite_token') : null;
+                if (pendingToken) {
+                  await fetch('/api/organizations/invites/accept', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: pendingToken })
+                  })
+                  localStorage.removeItem('pending_invite_token')
+                }
+              } catch { }
               router.push('/dashboard');
               return;
             }
@@ -87,6 +99,17 @@ function AuthCallbackContent() {
             toast.success("Successfully logged in!", {
               description: `Welcome ${data.session.user.email}!`
             });
+            try {
+              const pendingToken = typeof window !== 'undefined' ? localStorage.getItem('pending_invite_token') : null;
+              if (pendingToken) {
+                await fetch('/api/organizations/invites/accept', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ token: pendingToken })
+                })
+                localStorage.removeItem('pending_invite_token')
+              }
+            } catch { }
             router.push('/dashboard');
             return;
           }
