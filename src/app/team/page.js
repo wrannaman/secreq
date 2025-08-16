@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Upload, X } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -42,6 +44,11 @@ function TeamPageContent() {
   const [newRole, setNewRole] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [orgName, setOrgName] = useState('');
+  const [orgLogoUrl, setOrgLogoUrl] = useState('');
+  const [savingOrgDetails, setSavingOrgDetails] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef(null);
   const supabase = useMemo(() => createClient(), []);
   const lastFetchKeyRef = useRef(null);
 
@@ -106,6 +113,42 @@ function TeamPageContent() {
         setLoadingData(true);
         await fetchTeam();
         setInvites([]);
+
+        // Load organization details
+        const { data: orgData } = await supabase
+          .from('organizations')
+          .select('name, logo_url')
+          .eq('id', orgId)
+          .single();
+
+        if (orgData) {
+          setOrgName(orgData.name || '');
+
+          // If there's a logo_url, generate a fresh signed URL
+          if (orgData.logo_url) {
+            try {
+              // Extract file path from existing URL (if it's already a signed URL, get the path)
+              const pathMatch = orgData.logo_url.match(/organization-logos\/[^?]+/);
+              const filePath = pathMatch ? pathMatch[0] : orgData.logo_url;
+
+              const { data: { signedUrl }, error: urlError } = await supabase.storage
+                .from('secreq')
+                .createSignedUrl(filePath, 60 * 60 * 24); // 24 hours
+
+              if (!urlError && signedUrl) {
+                setOrgLogoUrl(signedUrl);
+              } else {
+                setOrgLogoUrl(''); // Clear if can't generate signed URL
+              }
+            } catch (error) {
+              console.warn('Failed to generate signed URL for existing logo:', error);
+              setOrgLogoUrl('');
+            }
+          } else {
+            setOrgLogoUrl('');
+          }
+        }
+
         setLoadingData(false);
       }
     };
@@ -231,9 +274,129 @@ function TeamPageContent() {
     }
   };
 
-  // Check if user is admin/owner of current organization
+  const handleLogoUpload = async (file) => {
+    if (!file || !currentOrganization) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${currentOrganization.org_id}/logo.${fileExt}`;
+      const filePath = `organization-logos/${fileName}`;
+
+      // Delete existing logo if it exists
+      if (orgLogoUrl) {
+        const existingPath = orgLogoUrl.split('/').slice(-2).join('/');
+        await supabase.storage.from('secreq').remove([existingPath]);
+      }
+
+      // Upload new logo
+      const { error: uploadError } = await supabase.storage
+        .from('secreq')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: file.type
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get signed URL (24 hour expiry)
+      const { data: { signedUrl }, error: urlError } = await supabase.storage
+        .from('secreq')
+        .createSignedUrl(filePath, 60 * 60 * 24); // 24 hours
+
+      if (urlError) throw urlError;
+
+      console.log('Generated signed URL:', signedUrl);
+      console.log('File path:', filePath);
+
+      setOrgLogoUrl(signedUrl);
+      toast.success('Logo uploaded successfully');
+    } catch (error) {
+      toast.error('Failed to upload logo', {
+        description: error.message
+      });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!orgLogoUrl || !currentOrganization) return;
+
+    try {
+      // Remove from storage
+      const existingPath = orgLogoUrl.split('/').slice(-2).join('/');
+      await supabase.storage.from('secreq').remove([existingPath]);
+
+      setOrgLogoUrl('');
+      toast.success('Logo removed');
+    } catch (error) {
+      toast.error('Failed to remove logo', {
+        description: error.message
+      });
+    }
+  };
+
+  const handleSaveOrgDetails = async () => {
+    if (!currentOrganization || !isAdmin) return;
+
+    setSavingOrgDetails(true);
+    try {
+      const { error } = await supabase
+        .from('organizations')
+        .update({
+          name: orgName.trim() || null,
+          logo_url: orgLogoUrl.trim() || null
+        })
+        .eq('id', currentOrganization.org_id);
+
+      if (error) throw error;
+
+      // Update the auth store with the new organization data
+      const updatedOrg = {
+        ...currentOrganization,
+        name: orgName.trim() || currentOrganization.name,
+        org_name: orgName.trim() || currentOrganization.org_name,
+        logo_url: orgLogoUrl
+      };
+      
+      // Update current organization in auth store
+      const { setCurrentOrganization, organizations, setOrganizations } = useAuthStore.getState();
+      setCurrentOrganization(updatedOrg);
+      
+      // Update organizations list too
+      const updatedOrgs = organizations.map(org => 
+        org.org_id === currentOrganization.org_id ? updatedOrg : org
+      );
+      setOrganizations(updatedOrgs);
+
+      toast.success('Organization details updated');
+    } catch (error) {
+      toast.error('Failed to update organization details', {
+        description: error.message
+      });
+    } finally {
+      setSavingOrgDetails(false);
+    }
+  };
+
+  // Check if user is editor/owner of current organization
   const userRole = team.find(member => member.user_id === user?.id)?.role;
-  const isAdmin = userRole === 'admin' || userRole === 'owner';
+  const isAdmin = userRole === 'editor' || userRole === 'owner';
 
   if (loading || loadingData) {
     return (
@@ -270,7 +433,7 @@ function TeamPageContent() {
         <main className="container mx-auto px-4 py-8">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">Access Denied</h1>
-            <p className="text-muted-foreground">You need admin permissions to manage team members.</p>
+            <p className="text-muted-foreground">You need editor/owner permissions to manage team members.</p>
           </div>
         </main>
       </div>
@@ -288,6 +451,83 @@ function TeamPageContent() {
               Manage team members for {currentOrganization.org_name}
             </p>
           </div>
+
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Organization Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Organization name"
+                    value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)}
+                    className="max-w-xs"
+                  />
+                  {orgLogoUrl && (
+                    <p className="text-xs text-muted-foreground mt-1 truncate max-w-xs">
+                      Logo URL: {orgLogoUrl}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {orgLogoUrl && (
+                    <img
+                      src={orgLogoUrl}
+                      alt="Logo"
+                      className="h-8 w-8 object-contain rounded border"
+                      onError={(e) => {
+                        console.error('Failed to load logo:', orgLogoUrl);
+                        e.target.style.display = 'none';
+                      }}
+                      onLoad={() => console.log('Logo loaded successfully:', orgLogoUrl)}
+                    />
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={uploadingLogo}
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    {uploadingLogo ? 'Uploading...' : orgLogoUrl ? 'Change' : 'Upload'} Logo
+                  </Button>
+                  {orgLogoUrl && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRemoveLogo}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button
+                    onClick={handleSaveOrgDetails}
+                    disabled={savingOrgDetails}
+                    size="sm"
+                  >
+                    {savingOrgDetails ? 'Saving...' : 'Save'}
+                  </Button>
+                </div>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleLogoUpload(file);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Invite New Member</h2>

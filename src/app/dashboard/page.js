@@ -142,9 +142,23 @@ function DashboardContent() {
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              SecReq Dashboard
-            </h1>
+            <div className="flex items-center gap-4 mb-2">
+              {currentOrganization?.logo_url && (
+                <img
+                  src={currentOrganization.logo_url}
+                  alt={`${currentOrganization.org_name || currentOrganization.name} logo`}
+                  className="h-12 w-12 object-contain rounded"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+              )}
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">
+                  {currentOrganization?.org_name || currentOrganization?.name || 'SecReq'} Dashboard
+                </h1>
+              </div>
+            </div>
             <div className="flex items-center justify-between">
               <p className="text-muted-foreground">
                 Respond to security questionnaires with AI-powered answers

@@ -80,6 +80,7 @@ export const useAuthStore = create((set, get) => ({
             id,
             name,
             slug,
+            logo_url,
             created_at
           )
         `)
@@ -89,8 +90,10 @@ export const useAuthStore = create((set, get) => ({
       if (!error && data) {
         const orgs = data.map(item => ({
           org_id: item.organizations.id,
+          org_name: item.organizations.name,
           name: item.organizations.name,
           slug: item.organizations.slug,
+          logo_url: item.organizations.logo_url,
           created_at: item.organizations.created_at
         }));
 
