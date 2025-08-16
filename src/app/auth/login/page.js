@@ -142,7 +142,7 @@ export default function LoginPage() {
                   ) : (
                     <>
                       <Mail className="mr-2 h-4 w-4" />
-                      Send Magic Linkzz
+                      Send Magic Link
                     </>
                   )}
                 </Button>
