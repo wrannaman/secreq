@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast-provider';
 const apiUrl = process.env.NEXT_PUBLIC_APP_URL;
 
-export default function AcceptInvitePage() {
+function AcceptInviteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -35,4 +35,12 @@ export default function AcceptInvitePage() {
   }, [token, router, toast]);
 
   return <div>Accepting invitation...</div>;
-} 
+}
+
+export default function AcceptInvitePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <AcceptInviteContent />
+    </Suspense>
+  );
+}
