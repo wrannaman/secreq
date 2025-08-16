@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { AuthGuard } from "@/components/auth-guard";
 import { AuthenticatedNav } from "@/components/layout/authenticated-nav";
@@ -9,7 +9,9 @@ import { useToast } from "@/components/toast-provider";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import SpreadsheetViewer from "@/components/questionnaire/spreadsheet-viewer";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sparkles, Square } from "lucide-react";
+import ExcelJS from "exceljs";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,10 +39,13 @@ export default function QuestionnaireWorkbenchPage() {
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState({ total: 0, done: 0, cancelled: false });
-  const [saving, setSaving] = useState(false);
-  const [lastSavedAt, setLastSavedAt] = useState(null);
-  const autosaveRef = useRef(null);
-  const lastSavedHashRef = useRef(null);
+  const [dirty, setDirty] = useState(false);
+  const [activeSignedUrl, setActiveSignedUrl] = useState(null);
+  const [activeFilename, setActiveFilename] = useState(null);
+  const autosaveRef = useRef(null); // unused now; kept for future
+  const lastSavedHashRef = useRef(null); // unused now; kept for future
+  const suppressDirtyRef = useRef(false);
+  const [recentVersions, setRecentVersions] = useState([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -54,16 +59,10 @@ export default function QuestionnaireWorkbenchPage() {
           .eq("id", id)
           .single();
         if (error) throw error;
-        if (!data?.original_file_path) throw new Error("No original file path set");
-        const { data: urlData, error: urlError } = await supabase
-          .storage
-          .from("secreq")
-          .createSignedUrl(data.original_file_path, 60 * 15);
-        if (urlError) throw urlError;
         if (isMounted) {
           setQuestionnaire(data);
-          setSignedUrl(urlData?.signedUrl || null);
           setSelectedDatasetIds(Array.isArray(data.selected_datasets) ? data.selected_datasets : []);
+          console.log('[Workbench] Questionnaire metadata loaded, will load latest version');
         }
       } catch (err) {
         toast.error("Unable to load questionnaire", { description: err.message });
@@ -208,33 +207,102 @@ export default function QuestionnaireWorkbenchPage() {
     }
   };
 
-  const autosave = async (rows, immediate = false) => {
-    if (!id) return;
-    if (!Array.isArray(rows)) rows = viewerRef.current?.getRows?.() || [];
-    const currentHash = hashRows(rows);
-    if (lastSavedHashRef.current === currentHash) return;
-    if (autosaveRef.current) clearTimeout(autosaveRef.current);
-    const run = async () => {
+  const saveVersion = async () => {
+    try {
+      const rows = viewerRef.current?.getRows?.() || []
+      const columnWidths = viewerRef.current?.getColumnWidths?.() || []
+      const merges = viewerRef.current?.getMerges?.() || []
+      const payload = { rows, columnWidths, merges, filename: `${questionnaire?.name || 'questionnaire'}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.xlsx` }
+      const res = await fetch(`/api/questionnaires/${id}/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      if (!res.ok) throw new Error('Save failed')
+      const json = await res.json()
+      console.log('[Workbench] saveVersion success, updating filename reference only', { version: json.version, path: json.path, filename: json.filename })
+
+      // Only update the filename for UI display purposes - keep the same signed URL to avoid reload
+      // The data in the viewer is already correct (it's what we just saved)
+      setActiveFilename(json.filename)
+      setDirty(false)
+      toast.success('Saved version', { description: json.version })
+
+      // Wait a bit for the file to be fully written to storage before refreshing versions
+      setTimeout(() => {
+        refreshVersions()
+      }, 1000)
+    } catch (e) {
+      toast.error('Save failed', { description: e.message })
+    }
+  };
+
+  const handleRowsChange = useCallback((rows) => {
+    console.log('[Workbench] onRowsChange fired. rows=', Array.isArray(rows) ? rows.length : 'n/a')
+    if (suppressDirtyRef.current) {
+      console.log('[Workbench] onRowsChange suppressed (programmatic load)')
+      suppressDirtyRef.current = false
+      setDirty(false)
+      return
+    }
+    setDirty(true)
+  }, [])
+
+  // Load latest version ONLY (but only on initial load, not after saves)
+  useEffect(() => {
+    const loadLatest = async () => {
+      if (!id || loading || !questionnaire || activeFilename) return; // Don't auto-load if we already have a filename set
+      const supabase = createClient();
       try {
-        setSaving(true);
-        const payload = { rows, meta: { questionRange, answerRange, selectedDatasetIds } };
-        const res = await fetch(`/api/questionnaires/${id}/save`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (!res.ok) throw new Error('Save failed');
-        setLastSavedAt(new Date());
-        lastSavedHashRef.current = currentHash;
-      } catch (_) {
-        // soft-fail; toast is noisy for autosave
-      } finally {
-        setSaving(false);
+        const prefix = `questionnaires/${id}/versions/`;
+        const { data, error } = await supabase.storage.from('secreq').list(prefix, { limit: 100 });
+        if (error) throw error;
+        const items = (data || []).filter(f => f.name.endsWith('.xlsx')).sort((a, b) => b.name.localeCompare(a.name));
+        const latest = items[0];
+        if (!latest) {
+          throw new Error('No saved versions found');
+        }
+        const { data: sig, error: sigErr } = await supabase.storage.from('secreq').createSignedUrl(prefix + latest.name, 60 * 15);
+        if (sigErr) throw sigErr;
+        console.log('[Workbench] Initial auto-load of latest version', latest.name);
+        suppressDirtyRef.current = true;
+        setActiveSignedUrl(sig?.signedUrl || null);
+        setActiveFilename(latest.name);
+        setDirty(false);
+        setTimeout(() => { suppressDirtyRef.current = false }, 1200);
+      } catch (e) {
+        toast.error('Failed to load latest version', { description: e.message });
       }
     };
-    if (immediate) return run();
-    autosaveRef.current = setTimeout(run, 1200);
+    loadLatest();
+  }, [id, loading, questionnaire, toast, activeFilename]);
+
+  const refreshVersions = async () => {
+    try {
+      const supabase = createClient();
+      const prefix = `questionnaires/${id}/versions/`;
+      const { data, error } = await supabase.storage.from('secreq').list(prefix, { limit: 100 });
+      if (error) throw error;
+      const items = (data || []).filter(f => f.name.endsWith('.xlsx')).sort((a, b) => b.name.localeCompare(a.name)).slice(0, 10);
+      setRecentVersions(items.map(f => ({ name: f.name, path: prefix + f.name })));
+      try {
+        const names = (items || []).map(f => f.name)
+        console.log('[Workbench] refreshVersions', { count: names.length, latest: names[0] || null, all: names })
+      } catch (_) { }
+    } catch (e) {
+      // silent
+    }
   };
+
+  useEffect(() => { if (id) refreshVersions(); }, [id]);
+
+  // Prompt before leaving if there are unsaved changes
+  useEffect(() => {
+    const handler = (e) => {
+      if (dirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty]);
 
   const buildContextForRow = (rowIndex) => {
     // Build question string from question range cell, plus header and section context
@@ -276,7 +344,7 @@ export default function QuestionnaireWorkbenchPage() {
           .map((v, idx) => `${idx + 1}. ${String(v || '').trim()}`)
           .filter(line => line.replace(/^\d+\.\s*/, '').trim().length > 0)
           .join('\n');
-        const prompt = `You are answering a security questionnaire.\n${ctx.section ? `Section: ${ctx.section}\n` : ''}${ctx.header ? `Header: ${ctx.header}\n` : ''}\n${rowLines ? `Row Context (cells):\n${rowLines}\n\n` : ''}Question: ${ctx.questionText}\nKeep answer concise (1-3 sentences).`;
+        const prompt = `You are drafting an answer on behalf of our company for a third‑party security questionnaire.\n${ctx.section ? `Section: ${ctx.section}\n` : ''}${ctx.header ? `Header: ${ctx.header}\n` : ''}\n${rowLines ? `Row Context (cells):\n${rowLines}\n\n` : ''}Question (from questionnaire): ${ctx.questionText}\n\nInstructions:\n- Answer as the supplier ("we") — do not answer as the AI or the platform.\n- Be concise (1–3 sentences) and specific.\n- Base the answer on the provided context and common security practices.\n- If the context suggests multiple parts (e.g., Yes/No and Comments), provide the narrative response suitable for the Response/Comments column.`;
         try {
           const res = await fetch('/api/generate', {
             method: 'POST',
@@ -301,13 +369,17 @@ export default function QuestionnaireWorkbenchPage() {
     }
     setIsProcessing(false);
     setSendDialogOpen(false);
+    // Give the UI a moment to paint updated cells before snapshotting
+    await new Promise((r) => setTimeout(r, 400));
+    // Auto-save a new version after AI completes
+    await saveVersion();
     // Clear selections after successful processing
     viewerRef.current?.clearSelections?.();
     setQuestionRange(null);
     setAnswerRange(null);
     setSelectionMode('question');
     setSelectedRows([]);
-    toast.success('AI processing completed');
+    toast.success('AI processing completed ✅', { description: 'Document was saved automatically' });
   };
 
   return (
@@ -320,10 +392,10 @@ export default function QuestionnaireWorkbenchPage() {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
               <p className="text-muted-foreground">Loading questionnaire…</p>
             </div>
-          ) : !questionnaire || !signedUrl ? (
+          ) : !questionnaire ? (
             <Card className="max-w-3xl mx-auto">
               <CardContent className="p-12 text-center">
-                <p className="text-muted-foreground">Unable to open the original file.</p>
+                <p className="text-muted-foreground">Unable to load questionnaire.</p>
               </CardContent>
             </Card>
           ) : (
@@ -362,26 +434,96 @@ export default function QuestionnaireWorkbenchPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <CardTitle>Original File Preview</CardTitle>
+                      {/* <CardTitle>Original File Preview</CardTitle> */}
                       <CardDescription>
-                        Click and drag to select cells vertically in a single column for questions or answers.
+                        <span className="ml-3 text-xs text-muted-foreground">{dirty ? 'Unsaved changes' : ''}</span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline" className="h-7 px-2 ml-2">Versions</Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="max-h-64 overflow-auto">
+                            {recentVersions.length === 0 ? (
+                              <div className="px-3 py-2 text-xs text-muted-foreground">No versions</div>
+                            ) : (
+                              recentVersions.map(v => {
+                                const isActive = activeFilename === v.name
+                                return (
+                                  <DropdownMenuItem
+                                    key={v.name}
+                                    className={isActive ? 'bg-blue-50 dark:bg-blue-950/20 font-medium' : ''}
+                                    onClick={async () => {
+                                      try {
+                                        const supabase = createClient();
+                                        const { data: sig, error } = await supabase.storage.from('secreq').createSignedUrl(v.path, 60 * 15)
+                                        if (error) throw error
+                                        console.log('[Workbench] Loading version from dropdown', v.name)
+                                        suppressDirtyRef.current = true
+                                        setActiveSignedUrl(sig?.signedUrl || null)
+                                        setActiveFilename(v.name)
+                                        setDirty(false)
+                                        toast.success('Loaded version', { description: v.name })
+                                      } catch (e) {
+                                        toast.error('Failed to load version', { description: e.message })
+                                      }
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-between w-full">
+                                      <span>{v.name}</span>
+                                      {isActive && <span className="text-blue-600 dark:text-blue-400 text-xs">●</span>}
+                                    </div>
+                                  </DropdownMenuItem>
+                                )
+                              })
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button variant="outline" size="sm" className="h-7 px-2 ml-2" onClick={saveVersion}>Save Version</Button>
+
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-2 text-xs">
                       <Button size="sm" variant={selectionMode === 'question' ? 'default' : 'outline'} className="h-7 px-2" onClick={() => setSelectionMode('question')}>Select Questions</Button>
                       <Button size="sm" variant={selectionMode === 'answer' ? 'default' : 'outline'} className="h-7 px-2" onClick={() => setSelectionMode('answer')}>Select Answers</Button>
-                      <span className="ml-3 text-xs text-muted-foreground">{saving ? 'Saving…' : lastSavedAt ? `Saved ${lastSavedAt.toLocaleTimeString()}` : ''}</span>
+                      {/* <Button size="sm" variant="outline" className="h-7 px-2 ml-2" onClick={loadLatestSnapshot}>Load Latest Snapshot</Button> */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2"
+                        onClick={async () => {
+                          try {
+                            const rows = viewerRef.current?.getRows?.() || []
+                            const columnWidths = viewerRef.current?.getColumnWidths?.() || []
+                            const merges = viewerRef.current?.getMerges?.() || []
+                            const res = await fetch(`/api/questionnaires/${id}/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows, columnWidths, merges, filename: `${questionnaire.name || 'questionnaire'}-export.xlsx` }) })
+                            if (!res.ok) throw new Error('Export failed')
+                            const blob = await res.blob()
+                            const url = URL.createObjectURL(blob)
+                            const a = document.createElement('a')
+                            a.href = url
+                            a.download = `${questionnaire.name || 'questionnaire'}-export.xlsx`
+                            document.body.appendChild(a)
+                            a.click()
+                            URL.revokeObjectURL(url)
+                            a.remove()
+                            toast.success('Exported .xlsx')
+                          } catch (e) {
+                            toast.error('Export failed', { description: e.message })
+                          }
+                        }}
+                      >
+                        Export Excel
+                      </Button>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <SpreadsheetViewer
                     ref={viewerRef}
-                    signedUrl={signedUrl}
-                    filename={questionnaire.original_file_name}
+                    signedUrl={activeSignedUrl}
+                    filename={activeFilename || questionnaire.original_file_name}
                     selectionMode={selectionMode}
                     onSelectionChange={setSelectedRows}
-                    onRowsChange={(rows) => autosave(rows)}
+                    onRowsChange={handleRowsChange}
                     onRangeSelect={(range) => {
                       if (!range) { setQuestionRange(null); setAnswerRange(null); return; }
                       if (range.mode === 'question') {
@@ -407,7 +549,9 @@ export default function QuestionnaireWorkbenchPage() {
                       A Range: {answerRange ? `${numberToLetters(answerRange.col)}${answerRange.start}–${numberToLetters(answerRange.col)}${answerRange.end}` : '—'}
                     </div>
                     <div className="ml-auto flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => { viewerRef.current?.clearSelections?.(); }}>Clear</Button>
+                      {(questionRange || answerRange || selectedRowRange()) && (
+                        <Button size="sm" variant="outline" onClick={() => { viewerRef.current?.clearSelections?.(); }}>Clear</Button>
+                      )}
                       {(() => {
                         const ready = canSend();
                         const mismatch = !!(questionRange && answerRange && ((questionRange.end - questionRange.start) !== (answerRange.end - answerRange.start)));
@@ -427,20 +571,10 @@ export default function QuestionnaireWorkbenchPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={async () => {
-                                try {
-                                  const payload = { rows: viewerRef.current?.getRows?.() || [], meta: { questionRange, answerRange, selectedDatasetIds } }
-                                  const res = await fetch(`/api/questionnaires/${id}/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-                                  if (!res.ok) throw new Error('Save failed')
-                                  const json = await res.json()
-                                  toast.success('Snapshot saved', { description: json.version })
-                                } catch (e) {
-                                  toast.error('Save failed', { description: e.message })
-                                }
-                              }}
+                              onClick={saveVersion}
                               className="ml-2 h-9"
                             >
-                              Save Snapshot
+                              Save Version
                             </Button>
                             <Button
                               variant="outline"
@@ -473,6 +607,16 @@ export default function QuestionnaireWorkbenchPage() {
                           </>
                         );
                       })()}
+                    </div>
+                  </div>
+
+                  {/* Current file status */}
+                  <div className="mt-4 pt-3 border-t text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <span>Currently loaded:</span>
+                      <span className="font-mono text-xs">
+                        {activeFilename || questionnaire?.original_file_name || 'Loading...'}
+                      </span>
                     </div>
                   </div>
                 </CardContent>
@@ -532,8 +676,8 @@ export default function QuestionnaireWorkbenchPage() {
               </Dialog>
 
               {isProcessing && (
-                <div className="fixed top-16 left-0 right-0 z-40">
-                  <div className="mx-auto max-w-5xl px-4">
+                <div className="fixed top-20 left-0 right-0 z-40">
+                  <div className="mx-auto container px-10">
                     <div className="flex items-center gap-3 p-3 border rounded bg-background/95 backdrop-blur">
                       <div className="flex-1">
                         <div className="text-xs text-muted-foreground">Generating answers… {progress.done}/{progress.total}</div>

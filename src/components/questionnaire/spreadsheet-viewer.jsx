@@ -16,8 +16,12 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
   const dragStartRef = useRef(null) // {row, col}
   const tempRangeRef = useRef(null) // {col, start, end}
   const [tempRangeTick, setTempRangeTick] = useState(0)
+  const lastRangeRef = useRef(null) // persists last finalized vertical range for copy/paste
+  const [undoStack, setUndoStack] = useState([])
+  const [redoStack, setRedoStack] = useState([])
 
   const containerRef = useRef(null)
+  const rootRef = useRef(null)
   const rafIdRef = useRef(null)
   const lastScrollTopRef = useRef(0)
   const lastScrollLeftRef = useRef(0)
@@ -89,12 +93,14 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
 
   useEffect(() => {
     if (!signedUrl) return
+    try { console.log('[SpreadsheetViewer] starting load', { filename, signedUrl }) } catch (_) { }
     const load = async () => {
       const res = await fetch(signedUrl)
       const contentType = res.headers.get('content-type') || ''
       const isCsv = contentType.includes('text/csv') || (filename || '').toLowerCase().endsWith('.csv')
 
       if (isCsv) {
+        try { console.log('[SpreadsheetViewer] detected CSV content') } catch (_) { }
         // Parse CSV (use Papaparse if available; fallback to a simple split)
         const text = await res.text()
         try {
@@ -119,6 +125,7 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
           setMaxColumns(maxCols)
           setMergeMap(new Map())
           setSkipCells(new Set())
+          try { console.log('[SpreadsheetViewer] CSV loaded', { rows: normalized.length, cols: maxCols, filename }) } catch (_) { }
           return
         } catch (err) {
           // Fallback naive CSV parsing (handles basic quoted fields, may not handle all edge cases)
@@ -140,11 +147,13 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
           setMaxColumns(maxCols)
           setMergeMap(new Map())
           setSkipCells(new Set())
+          try { console.log('[SpreadsheetViewer] CSV (fallback) loaded', { rows: normalized.length, cols: maxCols, filename }) } catch (_) { }
           return
         }
       }
 
       // XLSX path
+      try { console.log('[SpreadsheetViewer] detected XLSX content') } catch (_) { }
       const buf = await res.arrayBuffer()
       const workbook = new ExcelJS.Workbook()
       await workbook.xlsx.load(buf)
@@ -190,14 +199,34 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
         dataRows.push(rowData)
       }
 
-      const trimmed = trimTrailingEmptyRows(dataRows)
+      try {
+        console.log('[SpreadsheetViewer] Before trimming', {
+          totalRows: dataRows.length,
+          firstFewRows: dataRows.slice(0, 5).map(r => ({
+            index: r.index,
+            firstCells: r.cells.slice(0, 3).map(c => c.value)
+          }))
+        })
+      } catch (_) { }
+
+      // Temporarily disable trimming to debug
+      const trimmed = dataRows // trimTrailingEmptyRows(dataRows)
+
+      try {
+        console.log('[SpreadsheetViewer] After trimming (DISABLED)', {
+          trimmedRows: trimmed.length,
+          removedRows: dataRows.length - trimmed.length
+        })
+      } catch (_) { }
+
       setRows(trimmed)
       setMaxColumns(maxCols)
       setMergeMap(mergeMapLocal)
       setSkipCells(skipLocal)
+      try { console.log('[SpreadsheetViewer] XLSX loaded', { rows: trimmed.length, cols: maxCols, filename }) } catch (_) { }
     }
     load()
-  }, [signedUrl, filename])
+  }, [signedUrl])
 
   useEffect(() => {
     return () => {
@@ -239,6 +268,7 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
     setTempRangeTick(t => t + 1)
     if (!r) return
     if (onRangeSelect) onRangeSelect({ mode: selectionMode, ...r })
+    lastRangeRef.current = r
   }
 
   useEffect(() => {
@@ -258,8 +288,9 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
   }, [selectedRows, onSelectionChange])
 
   useEffect(() => {
+    try { console.log('[SpreadsheetViewer] rows updated -> notifying parent. rows=%d', rows.length) } catch (_) { }
     if (onRowsChange) onRowsChange(rows)
-  }, [rows, onRowsChange])
+  }, [rows])
 
   const toggleRowSelection = (rowIndex, withRange = false) => {
     setSelectedRows(prev => {
@@ -286,6 +317,30 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
       clearAllSelections()
       return
     }
+    // Undo / Redo (Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z)
+    if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === 'z')) {
+      e.preventDefault()
+      if (e.shiftKey) {
+        // Redo
+        if (redoStack.length > 0) {
+          const redo = redoStack[redoStack.length - 1]
+          setRedoStack(prev => prev.slice(0, -1))
+          setUndoStack(prev => [...prev, rows])
+          setRows(redo)
+          if (onRowsChange) onRowsChange(redo)
+        }
+      } else {
+        // Undo
+        if (undoStack.length > 0) {
+          const prevRows = undoStack[undoStack.length - 1]
+          setUndoStack(prev => prev.slice(0, -1))
+          setRedoStack(prev => [...prev, rows])
+          setRows(prevRows)
+          if (onRowsChange) onRowsChange(prevRows)
+        }
+      }
+      return
+    }
     if (!selected) return
     const { r, c } = selected
     if (e.key === 'Enter' && !editing) {
@@ -297,19 +352,61 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
     }
     if ((e.metaKey || e.ctrlKey) && (e.key === 'c' || e.key === 'C')) {
       e.preventDefault()
-      const value = rows[r - 1]?.cells?.[c - 1]?.value || ''
-      try { await navigator.clipboard.writeText(value) } catch (_) { }
+      let out = ''
+      const range = lastRangeRef.current
+      if (range && range.col) {
+        const vals = []
+        for (let rowIndex = range.start; rowIndex <= range.end; rowIndex++) {
+          vals.push(String(rows[rowIndex - 1]?.cells?.[range.col - 1]?.value ?? ''))
+        }
+        out = vals.join('\n')
+      } else {
+        out = String(rows[r - 1]?.cells?.[c - 1]?.value ?? '')
+      }
+      try { await navigator.clipboard.writeText(out) } catch (_) { }
       return
     }
     if ((e.metaKey || e.ctrlKey) && (e.key === 'v' || e.key === 'V')) {
       e.preventDefault()
       try {
         const text = await navigator.clipboard.readText()
-        const next = rows.map(row => ({ ...row, cells: row.cells.map(cell => ({ ...cell })) }))
-        const cell = next[r - 1]?.cells?.[c - 1]
-        if (cell) cell.value = text
+        const lines = text.split(/\r?\n/)
+        const snapshot = rows.map(row => ({ index: row.index, cells: row.cells.map(cell => ({ ...cell })) }))
+        setUndoStack(prev => [...prev, snapshot])
+        setRedoStack([])
+        const next = snapshot.map(row => ({ ...row, cells: row.cells.map(cell => ({ ...cell })) }))
+        const startRow = r
+        const pasteCol = (lastRangeRef.current && lastRangeRef.current.col) ? lastRangeRef.current.col : c
+        for (let i = 0; i < lines.length; i++) {
+          const rowIdx = startRow + i
+          if (!next[rowIdx - 1]) break
+          const cell = next[rowIdx - 1].cells[pasteCol - 1]
+          if (cell) cell.value = lines[i]
+        }
         setRows(next)
+        if (onRowsChange) onRowsChange(next)
       } catch (_) { }
+      return
+    }
+    // Delete content in selected range or cell
+    if ((e.key === 'Delete' || e.key === 'Backspace') && !editing) {
+      e.preventDefault()
+      const snapshot = rows.map(row => ({ index: row.index, cells: row.cells.map(cell => ({ ...cell })) }))
+      setUndoStack(prev => [...prev, snapshot])
+      setRedoStack([])
+      const next = snapshot.map(row => ({ ...row, cells: row.cells.map(cell => ({ ...cell })) }))
+      if (lastRangeRef.current && lastRangeRef.current.col) {
+        const { col, start, end } = lastRangeRef.current
+        for (let rowIndex = start; rowIndex <= end; rowIndex++) {
+          const cell = next[rowIndex - 1]?.cells?.[col - 1]
+          if (cell) cell.value = ''
+        }
+      } else if (selected) {
+        const cell = next[r - 1]?.cells?.[c - 1]
+        if (cell) cell.value = ''
+      }
+      setRows(next)
+      if (onRowsChange) onRowsChange(next)
       return
     }
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
@@ -359,6 +456,16 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
       })
       return out
     },
+    setRowsFromSnapshot: (snapshotRows = []) => {
+      const normalized = Array.isArray(snapshotRows) ? snapshotRows.map((r, idx) => ({
+        index: r.index || idx + 1,
+        cells: Array.isArray(r.cells) ? r.cells.map((c, ci) => ({ column: c?.column || ci + 1, value: c?.value ?? '' })) : []
+      })) : []
+      setRows(normalized)
+      setSelected(null)
+      setSelectedRows(new Set())
+      clearAllSelections()
+    },
     setCellValue: (rowIndex, colIndex, value) => {
       setRows(prev => {
         const next = prev.map(row => ({ ...row, cells: row.cells.map(cell => ({ ...cell })) }))
@@ -372,8 +479,43 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
 
   const setWidth = (c, w) => setColumnWidths(prev => ({ ...prev, [c]: Math.max(60, Math.min(480, w)) }))
 
+  const handleCopy = (e) => {
+    let out = ''
+    const range = lastRangeRef.current
+    if (range && range.col) {
+      const vals = []
+      for (let rowIndex = range.start; rowIndex <= range.end; rowIndex++) {
+        vals.push(String(rows[rowIndex - 1]?.cells?.[range.col - 1]?.value ?? ''))
+      }
+      out = vals.join('\n')
+    } else if (selected) {
+      out = String(rows[selected.r - 1]?.cells?.[selected.c - 1]?.value ?? '')
+    }
+    if (out) {
+      e.preventDefault()
+      try { e.clipboardData.setData('text/plain', out) } catch (_) { }
+    }
+  }
+
+  const handlePaste = (e) => {
+    const text = e.clipboardData?.getData('text/plain')
+    if (!text) return
+    e.preventDefault()
+    const lines = text.split(/\r?\n/)
+    const startRow = selected ? selected.r : 1
+    const pasteCol = (lastRangeRef.current && lastRangeRef.current.col) ? lastRangeRef.current.col : (selected ? selected.c : 1)
+    const next = rows.map(row => ({ ...row, cells: row.cells.map(cell => ({ ...cell })) }))
+    for (let i = 0; i < lines.length; i++) {
+      const rowIdx = startRow + i
+      if (!next[rowIdx - 1]) break
+      const cell = next[rowIdx - 1].cells[pasteCol - 1]
+      if (cell) cell.value = lines[i]
+    }
+    setRows(next)
+  }
+
   return (
-    <div className="w-full" tabIndex={0} onKeyDown={handleKeyDown}>
+    <div ref={rootRef} className="w-full" tabIndex={0} onKeyDown={handleKeyDown} onCopy={handleCopy} onPaste={handlePaste}>
       {/* <div className="text-sm text-muted-foreground mb-2">{filename}</div> */}
       <div
         ref={containerRef}
@@ -381,7 +523,7 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
         className="border rounded overflow-auto bg-background"
         style={{ height: viewportHeight }}
       >
-        <table className="w-max min-w-full text-xs border-collapse">
+        <table className="w-max min-w-full text-xs border-collapse" onMouseDown={() => rootRef.current && rootRef.current.focus()}>
           <thead className="sticky top-0 bg-background z-10">
             <tr>
               <th className="w-10 border bg-muted text-center select-none">
@@ -452,7 +594,14 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
                         ${isInTemp ? (selectionMode === 'question' ? 'bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-300/50' : 'bg-emerald-50 dark:bg-emerald-900/30 ring-1 ring-emerald-300/50') : ''}
                         ${highlightColumns[c] ? (highlightColumns[c] === 'question' ? 'bg-blue-100 text-blue-950 dark:bg-blue-900/20 dark:text-blue-100' : 'bg-emerald-100 text-emerald-950 dark:bg-emerald-900/20 dark:text-emerald-100') : ''}`}
                       style={{ width: columnWidths[c] || 140 }}
-                      onMouseDown={(e) => { e.preventDefault(); setEditing(null); beginDrag(row.index, c); setSelected({ r: row.index, c }) }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        // Do not clear editor if clicking the same editing cell
+                        if (!(editing && editing.r === row.index && editing.c === c)) {
+                          beginDrag(row.index, c);
+                          setSelected({ r: row.index, c })
+                        }
+                      }}
                       onMouseEnter={() => extendDrag(row.index, c)}
                       onMouseUp={(e) => { e.preventDefault(); endDrag(row.index, c) }}
                       onDoubleClick={(e) => {
@@ -477,8 +626,6 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
                               return next
                             })
                             setEditing(null)
-                            // notify parent about changed rows (autosave)
-                            if (onRowsChange) onRowsChange(rows)
                           }}
                           onKeyDown={(e) => {
                             if (e.key === 'Escape') {
@@ -588,7 +735,7 @@ function initDrag(e, col, startWidth, setWidth) {
   window.addEventListener('mouseup', onUp)
 }
 
-// Trim trailing empty rows if there are 5+ consecutive empty at the end
+// Trim trailing empty rows only if there are 10+ consecutive empty at the end
 function trimTrailingEmptyRows(rows) {
   let end = rows.length - 1
   let emptyStreak = 0
@@ -597,10 +744,18 @@ function trimTrailingEmptyRows(rows) {
     if (isEmpty) {
       emptyStreak++
     } else {
-      if (emptyStreak >= 5) { end = i; break }
+      // Only trim if we found 10+ empty rows at the end
+      if (emptyStreak >= 10) {
+        end = i
+        break
+      }
       emptyStreak = 0
       end = i
     }
+  }
+  // Final check: if we ended with empty rows, only trim if 10+ consecutive
+  if (emptyStreak >= 10) {
+    end = rows.length - emptyStreak - 1
   }
   return rows.slice(0, end + 1)
 }
