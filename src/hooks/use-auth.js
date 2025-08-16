@@ -177,6 +177,13 @@ export function AuthProvider({ children }) {
           store.fetchOrganizations().catch(error => {
             console.error("❌ [AUTH] Initial organization fetch failed:", error);
           });
+
+          // Best-effort Slack notification when a session exists
+          try {
+            if (session?.user?.email) {
+              fetch('/api/notify-signup', { method: 'POST' }).catch(() => {})
+            }
+          } catch {}
         }
 
         store.setLoading(false)
