@@ -203,16 +203,27 @@ function TeamPageContent() {
       }
 
       // Create the invite
-      const { error } = await supabase
+      const { data: created, error } = await supabase
         .from('organization_invites')
         .insert({
           organization_id: currentOrganization.org_id,
           email: email.toLowerCase(),
           role,
           invited_by: user.id
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      // Send the invite email via API (fire-and-forget)
+      if (created?.id) {
+        fetch('/api/organizations/invites/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inviteId: created.id })
+        }).catch(() => { })
+      }
 
       toast.success('Invitation sent!', {
         description: `Invited ${email} as ${role}. They will receive an email to join.`
