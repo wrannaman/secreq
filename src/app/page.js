@@ -108,102 +108,82 @@ function HomeContent() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
-              {/* Workbench */}
-              <div>
-                <Card className="overflow-hidden border-0 shadow-lg">
-                  <CardContent className="p-0">
-                    <Image
-                      src="/workbench-min.png"
-                      alt="AI Workbench - Edit and approve responses"
-                      width={600}
-                      height={400}
-                      className="w-full h-auto"
-                    />
-                  </CardContent>
-                </Card>
-              </div>
-              <div className="space-y-6">
-                <h4 className="text-2xl font-semibold text-foreground">
-                  AI Workbench
-                </h4>
-                <p className="text-lg text-muted-foreground leading-relaxed">
-                  Review, edit, and approve AI-generated responses in an intuitive spreadsheet interface.
-                  See confidence scores and citations for every answer.
-                </p>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-7xl mx-auto">
+              {/* AI Workbench */}
+              <Card className="overflow-hidden border-0 shadow-lg">
+                <CardContent className="p-0">
+                  <Image
+                    src="/workbench-min.png"
+                    alt="AI Workbench - Edit and approve responses"
+                    width={900}
+                    height={560}
+                    className="w-full h-auto"
+                  />
+                </CardContent>
+                <div className="p-6 space-y-3">
+                  <h4 className="text-2xl font-semibold text-foreground">AI Workbench</h4>
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    Review, edit, and approve AI-generated responses in an intuitive spreadsheet interface. See confidence and citations for every answer.
+                  </p>
+                </div>
+              </Card>
 
-              {/* Data Management */}
-              <div className="space-y-6 lg:order-2">
-                <h4 className="text-2xl font-semibold text-foreground">
-                  Smart Data Management
-                </h4>
-                <p className="text-lg text-muted-foreground leading-relaxed">
-                  Upload your policies, procedures, and documentation once.
-                  Our AI learns your organization to provide accurate, consistent responses.
-                </p>
-              </div>
-              <div className="lg:order-1">
-                <Card className="overflow-hidden border-0 shadow-lg">
-                  <CardContent className="p-0">
-                    <Image
-                      src="/data-min.png"
-                      alt="Dataset management interface"
-                      width={600}
-                      height={400}
-                      className="w-full h-auto"
-                    />
-                  </CardContent>
-                </Card>
-              </div>
+              {/* Smart Data Management */}
+              <Card className="overflow-hidden border-0 shadow-lg">
+                <CardContent className="p-0">
+                  <Image
+                    src="/data-min.png"
+                    alt="Dataset management interface"
+                    width={900}
+                    height={560}
+                    className="w-full h-auto"
+                  />
+                </CardContent>
+                <div className="p-6 space-y-3">
+                  <h4 className="text-2xl font-semibold text-foreground">Smart Data Management</h4>
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    Upload policies once. Our AI learns your org to produce accurate, consistent responses.
+                  </p>
+                </div>
+              </Card>
 
               {/* Team Collaboration */}
-              <div>
-                <Card className="overflow-hidden border-0 shadow-lg">
-                  <CardContent className="p-0">
-                    <Image
-                      src="/team-min.png"
-                      alt="Team collaboration and management"
-                      width={600}
-                      height={400}
-                      className="w-full h-auto"
-                    />
-                  </CardContent>
-                </Card>
-              </div>
-              <div className="space-y-6">
-                <h4 className="text-2xl font-semibold text-foreground">
-                  Team Collaboration
-                </h4>
-                <p className="text-lg text-muted-foreground leading-relaxed">
-                  Invite your team, manage permissions, and track progress together.
-                  Everyone stays aligned on your security posture.
-                </p>
-              </div>
+              <Card className="overflow-hidden border-0 shadow-lg">
+                <CardContent className="p-0">
+                  <Image
+                    src="/team-min.png"
+                    alt="Team collaboration and management"
+                    width={900}
+                    height={560}
+                    className="w-full h-auto"
+                  />
+                </CardContent>
+                <div className="p-6 space-y-3">
+                  <h4 className="text-2xl font-semibold text-foreground">Team Collaboration</h4>
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    Invite your team, manage roles, and track progress together.
+                  </p>
+                </div>
+              </Card>
 
-              {/* Dashboard Overview */}
-              <div className="space-y-6 lg:order-2">
-                <h4 className="text-2xl font-semibold text-foreground">
-                  Progress Dashboard
-                </h4>
-                <p className="text-lg text-muted-foreground leading-relaxed">
-                  Track completion status, monitor team progress, and get insights into your security questionnaire pipeline.
-                  See what needs attention at a glance.
-                </p>
-              </div>
-              <div className="lg:order-1">
-                <Card className="overflow-hidden border-0 shadow-lg">
-                  <CardContent className="p-0">
-                    <Image
-                      src="/dash-min.png"
-                      alt="Dashboard overview with progress tracking"
-                      width={600}
-                      height={400}
-                      className="w-full h-auto"
-                    />
-                  </CardContent>
-                </Card>
-              </div>
+              {/* Progress Dashboard */}
+              <Card className="overflow-hidden border-0 shadow-lg">
+                <CardContent className="p-0">
+                  <Image
+                    src="/dash-min.png"
+                    alt="Dashboard overview with progress tracking"
+                    width={900}
+                    height={560}
+                    className="w-full h-auto"
+                  />
+                </CardContent>
+                <div className="p-6 space-y-3">
+                  <h4 className="text-2xl font-semibold text-foreground">Progress Dashboard</h4>
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    See status at a glance and keep work moving with clear metrics.
+                  </p>
+                </div>
+              </Card>
             </div>
           </div>
         </section>
