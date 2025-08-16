@@ -3,7 +3,7 @@
 export async function updateQuestionnaireStatus(questionnaireId, supabase) {
   try {
     console.log('🔍 [STATUS-UPDATE] Checking questionnaire completion status for:', questionnaireId);
-    
+
     // Get all questionnaire items
     const { data: items, error: itemsError } = await supabase
       .from('questionnaire_items')
@@ -21,16 +21,16 @@ export async function updateQuestionnaireStatus(questionnaireId, supabase) {
 
     // Check completion criteria
     const totalItems = items.length;
-    const processedItems = items.filter(item => 
+    const processedItems = items.filter(item =>
       item.draft_answer || item.final_answer
     );
-    const approvedItems = items.filter(item => 
+    const approvedItems = items.filter(item =>
       item.status === 'approved' || item.status === 'reviewed' || item.final_answer
     );
 
     console.log(`📊 [STATUS-UPDATE] Stats - Total: ${totalItems}, Processed: ${processedItems.length}, Approved: ${approvedItems.length}`);
 
-    let newStatus = 'processing';
+    let newStatus = 'draft';
     let completedAt = null;
 
     // Determine new status based on completion
@@ -44,9 +44,9 @@ export async function updateQuestionnaireStatus(questionnaireId, supabase) {
       newStatus = 'needs_review';
       console.log('🔍 [STATUS-UPDATE] All items processed but need review');
     } else if (processedItems.length > 0) {
-      // Some items processed
-      newStatus = 'processing';
-      console.log('⏳ [STATUS-UPDATE] Partial processing - keeping as processing');
+      // Some items processed - keep as needs review for now
+      newStatus = 'needs_review';
+      console.log('⏳ [STATUS-UPDATE] Partial processing - marking as needs review');
     } else {
       // No items processed yet
       newStatus = 'draft';
@@ -93,7 +93,7 @@ export async function markQuestionnaireCompleted(questionnaireId, supabase) {
       .eq('id', questionnaireId);
 
     if (error) throw error;
-    
+
     console.log('✅ [STATUS-UPDATE] Manually marked questionnaire as completed:', questionnaireId);
     return true;
   } catch (error) {
@@ -106,7 +106,6 @@ export async function markQuestionnaireCompleted(questionnaireId, supabase) {
 export function getStatusLabel(status) {
   switch (status) {
     case 'draft': return 'Draft';
-    case 'processing': return 'Processing';
     case 'needs_review': return 'Needs Review';
     case 'completed': return 'Completed';
     case 'approved': return 'Approved';
@@ -117,7 +116,6 @@ export function getStatusLabel(status) {
 export function getStatusColor(status) {
   switch (status) {
     case 'draft': return 'bg-gray-500';
-    case 'processing': return 'bg-blue-500';
     case 'needs_review': return 'bg-yellow-500';
     case 'completed': return 'bg-green-500';
     case 'approved': return 'bg-green-600';
@@ -128,7 +126,6 @@ export function getStatusColor(status) {
 export function getStatusVariant(status) {
   switch (status) {
     case 'draft': return 'outline';
-    case 'processing': return 'default';
     case 'needs_review': return 'destructive';
     case 'completed': return 'success';
     case 'approved': return 'success';

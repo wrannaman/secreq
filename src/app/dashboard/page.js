@@ -32,9 +32,9 @@ function DashboardContent() {
   const [datasets, setDatasets] = useState([]);
   const [stats, setStats] = useState({
     totalQuestionnaires: 0,
-    totalQuestions: 0,
-    completedQuestions: 0,
-    avgConfidence: 0
+    draftCount: 0,
+    needsReviewCount: 0,
+    completedCount: 0
   });
   const [loading, setLoading] = useState(true);
   const fileInputRef = useRef(null);
@@ -80,36 +80,17 @@ function DashboardContent() {
       if (dError) throw dError;
       setDatasets(datasetData || []);
 
-      // Calculate stats
+      // Calculate stats by questionnaire status
       const totalQuestionnaires = questionnaireData?.length || 0;
-      let totalQuestions = 0;
-      let completedQuestions = 0;
-      let totalConfidence = 0;
-      let confidenceCount = 0;
-
-      for (const q of questionnaireData || []) {
-        const { data: items } = await supabase
-          .from('questionnaire_items')
-          .select('status, confidence_score')
-          .eq('questionnaire_id', q.id);
-
-        totalQuestions += items?.length || 0;
-        const completed = items?.filter(i => i.status === 'approved') || [];
-        completedQuestions += completed.length;
-
-        items?.forEach(item => {
-          if (item.confidence_score) {
-            totalConfidence += item.confidence_score;
-            confidenceCount++;
-          }
-        });
-      }
+      const draftCount = questionnaireData?.filter(q => q.status === 'draft')?.length || 0;
+      const needsReviewCount = questionnaireData?.filter(q => q.status === 'needs_review')?.length || 0;
+      const completedCount = questionnaireData?.filter(q => q.status === 'completed')?.length || 0;
 
       setStats({
         totalQuestionnaires,
-        totalQuestions,
-        completedQuestions,
-        avgConfidence: confidenceCount > 0 ? totalConfidence / confidenceCount : 0
+        draftCount,
+        needsReviewCount,
+        completedCount
       });
 
     } catch (error) {
@@ -123,17 +104,17 @@ function DashboardContent() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed': return 'bg-green-500';
-      case 'processing': return 'bg-blue-500';
-      case 'draft': return 'bg-gray-500';
-      default: return 'bg-gray-500';
+      case 'completed': return 'bg-green-400';
+      case 'needs_review': return 'bg-yellow-400';
+      case 'draft': return 'bg-gray-400';
+      default: return 'bg-gray-400';
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
       case 'completed': return CheckCircle;
-      case 'processing': return Sparkles;
+      case 'needs_review': return AlertTriangle;
       case 'draft': return Clock;
       default: return Clock;
     }
@@ -244,47 +225,47 @@ function DashboardContent() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-gray-400 bg-gray-50/50 dark:bg-gray-900/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Questions
+                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Draft
                 </CardTitle>
-                <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                <Clock className="h-4 w-4 text-gray-600 dark:text-gray-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalQuestions}</div>
-                <p className="text-xs text-muted-foreground">
-                  Questions across all questionnaires
+                <div className="text-2xl font-bold text-gray-800 dark:text-gray-200">{stats.draftCount}</div>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Questionnaires in draft
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardTitle className="text-sm font-medium text-yellow-700 dark:text-yellow-300">
+                  Needs Review
+                </CardTitle>
+                <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-800 dark:text-yellow-200">{stats.needsReviewCount}</div>
+                <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                  Ready for review
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-green-400 bg-green-50/50 dark:bg-green-900/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">
                   Completed
                 </CardTitle>
-                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.completedQuestions}</div>
+                <div className="text-2xl font-bold text-green-800 dark:text-green-200">{stats.completedCount}</div>
                 <p className="text-xs text-green-600 dark:text-green-400">
-                  {stats.totalQuestions > 0 ? Math.round((stats.completedQuestions / stats.totalQuestions) * 100) : 0}% completion rate
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Avg Confidence
-                </CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{Math.round(stats.avgConfidence * 100)}%</div>
-                <p className="text-xs text-muted-foreground">
-                  AI answer confidence
+                  {stats.totalQuestionnaires > 0 ? Math.round((stats.completedCount / stats.totalQuestionnaires) * 100) : 0}% complete
                 </p>
               </CardContent>
             </Card>
@@ -302,7 +283,7 @@ function DashboardContent() {
                   </Button>
                 </div>
                 <CardDescription>
-                  Questionnaires you're working on
+                  Questionnaires you&apos;re working on
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -341,7 +322,13 @@ function DashboardContent() {
                           </div>
 
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
+                            <Badge
+                              variant="outline"
+                              className={`text-xs ${questionnaire.status === 'completed' ? 'border-green-300 bg-green-50 text-green-700 dark:border-green-600 dark:bg-green-900/20 dark:text-green-300' :
+                                questionnaire.status === 'needs_review' ? 'border-yellow-300 bg-yellow-50 text-yellow-700 dark:border-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-300' :
+                                  'border-gray-300 bg-gray-50 text-gray-700 dark:border-gray-600 dark:bg-gray-900/20 dark:text-gray-300'
+                                }`}
+                            >
                               <StatusIcon className="h-3 w-3 mr-1" />
                               {questionnaire.status}
                             </Badge>

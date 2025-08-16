@@ -279,25 +279,25 @@ export function DatasetFileViewer({ datasetId, datasetName, onFileDeleted }) {
       case 'completed':
         return (
           <Badge variant="secondary" className="bg-green-100 text-green-800">
-            ✅ {chunks} chunks
+            Processed
           </Badge>
         );
       case 'processing':
         return (
           <Badge variant="secondary" className="bg-blue-100 text-blue-800 animate-pulse">
-            🔄 Processing...
+            Processing...
           </Badge>
         );
       case 'failed':
         return (
           <Badge variant="destructive">
-            ❌ Failed
+            Failed
           </Badge>
         );
       default:
         return (
           <Badge variant="outline">
-            ⏳ Pending
+            Pending
           </Badge>
         );
     }
@@ -409,12 +409,6 @@ export function DatasetFileViewer({ datasetId, datasetName, onFileDeleted }) {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {file.status === 'completed' && chunkCount > 0 && (
-                      <Badge variant="outline" className="text-xs">
-                        Ready for AI
-                      </Badge>
-                    )}
-
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm">

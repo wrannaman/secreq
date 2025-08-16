@@ -1,6 +1,15 @@
+
 # SecReq
 
 AI-powered security questionnaire platform that helps organizations efficiently respond to security assessments using intelligent document analysis and automated answer generation.
+
+
+# later ideas 
+- collab 
+- leave notes in cells / resolve them 
+- allwo customer to send our url with the filled out questionnaire so the RECIEVER can just chat with the ai about the policies and document. 
+- 
+
 
 ## Features
 
