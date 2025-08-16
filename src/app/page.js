@@ -1,18 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useAuth } from "@/hooks/use-auth";
 import { PublicOnly } from "@/components/auth-guard";
-import { Shield, FileText, Users, BarChart3, ArrowRight } from "lucide-react";
+import { Shield, ArrowRight, Play, X } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 function HomeContent() {
   const { isAuthenticated } = useAuth();
   const router = useRouter();
+  const [showDemo, setShowDemo] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -21,77 +24,237 @@ function HomeContent() {
   }, [isAuthenticated, router]);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-foreground">SecReq</h1>
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="h-6 w-6 text-primary" />
+            <h1 className="text-xl font-bold text-foreground">SecReq</h1>
+          </div>
           <div className="flex items-center gap-4">
             <ModeToggle />
-            <Button asChild>
+            <Button asChild variant="outline">
               <Link href="/auth/login">Sign In</Link>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-16 flex-1">
-        <div className="text-center mb-16">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Shield className="h-8 w-8 text-primary" />
+      <main>
+        {/* Hero Section */}
+        <section className="container mx-auto px-6 py-20 text-center">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-5xl md:text-6xl font-bold text-foreground mb-6 tracking-tight">
+              The fastest way to fill out
+              <span className="text-primary"> security questionnaires</span>
+            </h2>
+            <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
+              AI-powered responses from your own documentation. Cut response time from weeks to minutes.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+              <Button size="lg" asChild className="text-lg px-8 py-6">
+                <Link href="/auth/login">
+                  Get Started Free
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="text-lg px-8 py-6 group"
+                onClick={() => setShowDemo(true)}
+              >
+                <Play className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
+                Watch Demo
+              </Button>
+            </div>
+
+            {/* Demo Video */}
+            <div className="relative max-w-4xl mx-auto">
+              <div className="rounded-lg overflow-hidden shadow-2xl border border-border/50">
+                <video
+                  className="w-full h-auto"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  poster="/workbench-min.png"
+                >
+                  <source src="/demo.mp4" type="video/mp4" />
+                  {/* Fallback to GIF if video doesn't work */}
+                  <Image
+                    src="/demo-min.gif"
+                    alt="SecReq Demo - AI filling out security questionnaires"
+                    width={1200}
+                    height={675}
+                    className="w-full h-auto"
+                  />
+                </video>
+              </div>
+            </div>
           </div>
-          <h2 className="text-4xl font-bold text-foreground mb-4">
-            Streamline Your Security Questionnaires
-          </h2>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            We solve massive, expensive enterprise problems with AI-powered security compliance.
-            It's more than just AI that writes responses, it's a solution to your IDP strain and shadow IT risk.
-          </p>
-          <Button size="lg" asChild className="text-lg px-8 py-6">
-            <Link href="/auth/login">
-              Get Started
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Link>
-          </Button>
-        </div>
+        </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          <Card>
-            <CardHeader>
-              <FileText className="h-8 w-8 text-primary mb-2" />
-              <CardTitle>AI-Powered Responses</CardTitle>
-              <CardDescription>
-                Automatically generate accurate security questionnaire responses using your organization's documentation
-              </CardDescription>
-            </CardHeader>
-          </Card>
+        {/* Features Section */}
+        <section className="bg-muted/30 py-20">
+          <div className="container mx-auto px-6">
+            <div className="text-center mb-16">
+              <h3 className="text-3xl font-bold text-foreground mb-4">
+                Complete questionnaires in minutes, not weeks
+              </h3>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Upload your policies once, answer hundreds of questionnaires automatically
+              </p>
+            </div>
 
-          <Card>
-            <CardHeader>
-              <Users className="h-8 w-8 text-primary mb-2" />
-              <CardTitle>Team Collaboration</CardTitle>
-              <CardDescription>
-                Work together with your team to review, approve, and manage security questionnaire responses
-              </CardDescription>
-            </CardHeader>
-          </Card>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
+              {/* Workbench */}
+              <div>
+                <Card className="overflow-hidden border-0 shadow-lg">
+                  <CardContent className="p-0">
+                    <Image
+                      src="/workbench-min.png"
+                      alt="AI Workbench - Edit and approve responses"
+                      width={600}
+                      height={400}
+                      className="w-full h-auto"
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="space-y-6">
+                <h4 className="text-2xl font-semibold text-foreground">
+                  AI Workbench
+                </h4>
+                <p className="text-lg text-muted-foreground leading-relaxed">
+                  Review, edit, and approve AI-generated responses in an intuitive spreadsheet interface.
+                  See confidence scores and citations for every answer.
+                </p>
+              </div>
 
-          <Card>
-            <CardHeader>
-              <BarChart3 className="h-8 w-8 text-primary mb-2" />
-              <CardTitle>Compliance Tracking</CardTitle>
-              <CardDescription>
-                Track completion rates, confidence scores, and maintain a comprehensive audit trail
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
+              {/* Data Management */}
+              <div className="space-y-6 lg:order-2">
+                <h4 className="text-2xl font-semibold text-foreground">
+                  Smart Data Management
+                </h4>
+                <p className="text-lg text-muted-foreground leading-relaxed">
+                  Upload your policies, procedures, and documentation once.
+                  Our AI learns your organization to provide accurate, consistent responses.
+                </p>
+              </div>
+              <div className="lg:order-1">
+                <Card className="overflow-hidden border-0 shadow-lg">
+                  <CardContent className="p-0">
+                    <Image
+                      src="/data-min.png"
+                      alt="Dataset management interface"
+                      width={600}
+                      height={400}
+                      className="w-full h-auto"
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Team Collaboration */}
+              <div>
+                <Card className="overflow-hidden border-0 shadow-lg">
+                  <CardContent className="p-0">
+                    <Image
+                      src="/team-min.png"
+                      alt="Team collaboration and management"
+                      width={600}
+                      height={400}
+                      className="w-full h-auto"
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="space-y-6">
+                <h4 className="text-2xl font-semibold text-foreground">
+                  Team Collaboration
+                </h4>
+                <p className="text-lg text-muted-foreground leading-relaxed">
+                  Invite your team, manage permissions, and track progress together.
+                  Everyone stays aligned on your security posture.
+                </p>
+              </div>
+
+              {/* Dashboard Overview */}
+              <div className="space-y-6 lg:order-2">
+                <h4 className="text-2xl font-semibold text-foreground">
+                  Progress Dashboard
+                </h4>
+                <p className="text-lg text-muted-foreground leading-relaxed">
+                  Track completion status, monitor team progress, and get insights into your security questionnaire pipeline.
+                  See what needs attention at a glance.
+                </p>
+              </div>
+              <div className="lg:order-1">
+                <Card className="overflow-hidden border-0 shadow-lg">
+                  <CardContent className="p-0">
+                    <Image
+                      src="/dash-min.png"
+                      alt="Dashboard overview with progress tracking"
+                      width={600}
+                      height={400}
+                      className="w-full h-auto"
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="py-20">
+          <div className="container mx-auto px-6 text-center">
+            <div className="max-w-3xl mx-auto">
+              <h3 className="text-4xl font-bold text-foreground mb-6">
+                Ready to transform your security questionnaire process?
+              </h3>
+              <p className="text-xl text-muted-foreground mb-8">
+                Join organizations already saving hundreds of hours with AI-powered compliance
+              </p>
+              <Button size="lg" asChild className="text-lg px-12 py-6">
+                <Link href="/auth/login">
+                  Start Free Today
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
       </main>
 
-      <footer className="border-t border-border bg-card">
-        <div className="container mx-auto px-4 py-4 text-center text-sm text-muted-foreground">
-          <p>© 2024 SecReq. Powered by AI for enterprise security compliance.</p>
+      <footer className="border-t border-border/40 bg-background">
+        <div className="container mx-auto px-6 py-8 text-center text-sm text-muted-foreground">
+          <p>© 2024 SecReq. AI-powered security compliance made simple.</p>
         </div>
       </footer>
+
+      {/* Demo Video Modal */}
+      <Dialog open={showDemo} onOpenChange={setShowDemo}>
+        <DialogContent className="max-w-4xl w-full p-0 bg-black">
+          <DialogHeader className="sr-only">
+            <DialogTitle>SecReq Demo Video</DialogTitle>
+          </DialogHeader>
+          <div className="relative aspect-video">
+            <video
+              className="w-full h-full"
+              controls
+              autoPlay
+              muted
+              playsInline
+            >
+              <source src="/demo.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

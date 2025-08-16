@@ -149,7 +149,7 @@ export default function LoginPage() {
               </form>
 
               <p className="text-xs text-muted-foreground text-center mt-4">
-                Don't have an account? One will be created automatically when you sign in.
+                Don&apos;t have an account? One will be created automatically when you sign in.
               </p>
             </CardContent>
           </Card>

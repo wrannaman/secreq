@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import SpreadsheetViewer from "@/components/questionnaire/spreadsheet-viewer";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sparkles, Square } from "lucide-react";
 import ExcelJS from "exceljs";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ export default function QuestionnaireWorkbenchPage() {
   const lastSavedHashRef = useRef(null); // unused now; kept for future
   const suppressDirtyRef = useRef(false);
   const [recentVersions, setRecentVersions] = useState([]);
+  const [savingStatus, setSavingStatus] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -114,6 +116,30 @@ export default function QuestionnaireWorkbenchPage() {
       : [...selectedDatasetIds, datasetId];
     setSelectedDatasetIds(next);
     persistSelectedDatasets(next);
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    if (!id) return;
+    setSavingStatus(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("questionnaires")
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setQuestionnaire(prev => ({ ...prev, status: newStatus }));
+      toast.success(`Status updated to ${newStatus}`);
+    } catch (error) {
+      toast.error("Failed to update status", { description: error.message });
+    } finally {
+      setSavingStatus(false);
+    }
   };
 
   const openEditForSelectedRow = () => {
@@ -405,28 +431,48 @@ export default function QuestionnaireWorkbenchPage() {
                   <CardTitle className="text-xl">Workbench</CardTitle>
                   <CardDescription>{questionnaire.name}</CardDescription>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs text-muted-foreground">Datasets:</span>
-                  {allDatasets.length === 0 ? (
-                    <span className="text-xs text-muted-foreground">None</span>
-                  ) : (
-                    allDatasets.map(ds => {
-                      const selected = selectedDatasetIds.includes(ds.id)
-                      return (
-                        <Button
-                          key={ds.id}
-                          size="sm"
-                          variant={selected ? "default" : "outline"}
-                          className="h-7 px-2 text-xs"
-                          onClick={() => handleToggleDataset(ds.id)}
-                          title={selected ? "Selected" : "Click to select"}
-                        >
-                          {ds.name}
-                          {selected && <Badge variant="secondary" className="ml-1 text-[10px]">✔</Badge>}
-                        </Button>
-                      )
-                    })
-                  )}
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-muted-foreground">Datasets:</span>
+                    {allDatasets.length === 0 ? (
+                      <span className="text-xs text-muted-foreground">None</span>
+                    ) : (
+                      allDatasets.map(ds => {
+                        const selected = selectedDatasetIds.includes(ds.id)
+                        return (
+                          <Button
+                            key={ds.id}
+                            size="sm"
+                            variant={selected ? "default" : "outline"}
+                            className="h-7 px-2 text-xs"
+                            onClick={() => handleToggleDataset(ds.id)}
+                            title={selected ? "Selected" : "Click to select"}
+                          >
+                            {ds.name}
+                            {selected && <Badge variant="secondary" className="ml-1 text-[10px]">✔</Badge>}
+                          </Button>
+                        )
+                      })
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Status:</span>
+                    <Select
+                      value={questionnaire?.status || 'draft'}
+                      onValueChange={handleStatusChange}
+                      disabled={savingStatus}
+                    >
+                      <SelectTrigger className="h-7 px-2 text-xs w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="needs_review">Needs Review</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 

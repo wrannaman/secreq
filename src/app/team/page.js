@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, useAuthStore } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -373,13 +373,13 @@ function TeamPageContent() {
         org_name: orgName.trim() || currentOrganization.org_name,
         logo_url: orgLogoUrl
       };
-      
+
       // Update current organization in auth store
       const { setCurrentOrganization, organizations, setOrganizations } = useAuthStore.getState();
       setCurrentOrganization(updatedOrg);
-      
+
       // Update organizations list too
-      const updatedOrgs = organizations.map(org => 
+      const updatedOrgs = organizations.map(org =>
         org.org_id === currentOrganization.org_id ? updatedOrg : org
       );
       setOrganizations(updatedOrgs);

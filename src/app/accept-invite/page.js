@@ -2,8 +2,8 @@
 
 import { useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useToast } from '@/components/ui/use-toast';
-const apiUrl = process.env.NEXT_PUBLIC_API_URL
+import { useToast } from '@/components/toast-provider';
+const apiUrl = process.env.NEXT_PUBLIC_APP_URL;
 
 export default function AcceptInvitePage() {
   const router = useRouter();
