@@ -147,14 +147,14 @@ function HomeContent() {
         <section className="py-20">
           <div className="container mx-auto px-6">
             <div className="text-center mb-12">
-              <h3 className="text-3xl font-bold text-foreground">Who it's for</h3>
+              <h3 className="text-3xl font-bold text-foreground">Who it&apos;s for</h3>
             </div>
             <ul className="max-w-4xl mx-auto space-y-4 text-lg text-muted-foreground">
               <li>Teams getting hit with <span className="font-semibold text-foreground">customer security questionnaires</span> and due‑diligence forms.</li>
               <li>Founders who sell <span className="font-semibold text-foreground">before</span> they hire a full GRC team.</li>
               <li>Security/Compliance folks who are <span className="font-semibold text-foreground">done</span> re‑answering the same questions.</li>
             </ul>
-            <p className="max-w-3xl mx-auto text-center text-lg text-muted-foreground mt-6">If that's you, this pays for itself on day one.</p>
+            <p className="max-w-3xl mx-auto text-center text-lg text-muted-foreground mt-6">If that&apos;s you, this pays for itself on day one.</p>
           </div>
         </section>
 
