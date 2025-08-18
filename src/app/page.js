@@ -328,15 +328,15 @@ function HomeContent() {
             <div className="max-w-4xl mx-auto space-y-8 text-lg text-muted-foreground">
               <div>
                 <p className="font-semibold text-foreground">Vanta/Conveyor/Loopio</p>
-                <p>Great suites, long rollouts, annual contracts. <span className="font-semibold text-foreground">Secreq</span> is the fast, self‑serve wrist‑rocket: upload and go. Keep your suite if you love it—use us to crush the ad‑hoc forms.</p>
+                <p>Great suites, but they break Excel formatting and require long rollouts. <span className="font-semibold text-foreground">Secreq</span> preserves your customer&apos;s exact formatting and works instantly—perfect for ad-hoc questionnaires.</p>
               </div>
               <div>
                 <p className="font-semibold text-foreground">Internal wiki + copy/paste</p>
-                <p>Inconsistent, slow, and brittle. Secreq drafts answers with citations and lets you approve at speed.</p>
+                <p>Inconsistent, slow, and you lose formatting when copying between Excel files. Secreq maintains perfect formatting while speeding up the research.</p>
               </div>
               <div>
                 <p className="font-semibold text-foreground">Freelancers/consultants</p>
-                <p>Helpful, but they still read your docs line‑by‑line. Secreq drafts in minutes; you use humans for judgment, not busywork.</p>
+                <p>Helpful, but they still read your docs line‑by‑line and often mess up complex Excel formatting. Secreq gives them AI-powered research while preserving the format.</p>
               </div>
             </div>
           </div>
