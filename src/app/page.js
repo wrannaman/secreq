@@ -77,6 +77,17 @@ function HomeContent() {
               </Button>
             </div>
 
+            <div className="mt-2">
+              <a
+                href="https://cal.com/andrew-pierno/30min"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+              >
+                Want to chat? Book a call
+              </a>
+            </div>
+
             {/* Demo Video */}
             <div className="relative max-w-4xl mx-auto">
               <div className="relative rounded-lg overflow-hidden shadow-2xl border border-border/50">
