@@ -14,6 +14,14 @@ export async function POST() {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
     }
 
+    // Only notify if the user account was just created (within the last 30 seconds)
+    const createdAtStr = data.user.created_at
+    const createdAt = createdAtStr ? new Date(createdAtStr) : null
+    const isRecent = createdAt ? (Date.now() - createdAt.getTime()) <= 30_000 : false
+    if (!isRecent) {
+      return NextResponse.json({ ok: true, skipped: true })
+    }
+
     const email = data.user.email || 'unknown'
     const payload = {
       text: `secreq - ${email} signed up`

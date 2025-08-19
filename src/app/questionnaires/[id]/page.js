@@ -282,7 +282,21 @@ export default function QuestionnaireWorkbenchPage() {
         const items = (data || []).filter(f => f.name.endsWith('.xlsx')).sort((a, b) => b.name.localeCompare(a.name));
         const latest = items[0];
         if (!latest) {
-          throw new Error('No saved versions found');
+          // Fallback: first-time upload, no versions yet → load original upload
+          if (!questionnaire?.original_file_path) {
+            throw new Error('No saved versions or original file path found');
+          }
+          const { data: sig, error: sigErr } = await supabase.storage
+            .from('secreq')
+            .createSignedUrl(questionnaire.original_file_path, 60 * 15);
+          if (sigErr) throw sigErr;
+          console.log('[Workbench] No versions yet; loading original upload', questionnaire.original_file_name);
+          suppressDirtyRef.current = true;
+          setActiveSignedUrl(sig?.signedUrl || null);
+          setActiveFilename(questionnaire.original_file_name);
+          setDirty(false);
+          setTimeout(() => { suppressDirtyRef.current = false }, 1200);
+          return;
         }
         const { data: sig, error: sigErr } = await supabase.storage.from('secreq').createSignedUrl(prefix + latest.name, 60 * 15);
         if (sigErr) throw sigErr;
