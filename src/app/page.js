@@ -79,7 +79,9 @@ function HomeContent() {
 
             {/* Demo Video */}
             <div className="relative max-w-4xl mx-auto">
-              <div className="rounded-lg overflow-hidden shadow-2xl border border-border/50">
+              <div className="relative rounded-lg overflow-hidden shadow-2xl border border-border/50">
+                {/* Mask tiny white line at the top of the video */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-background z-10" />
                 <video
                   className="w-full h-auto"
                   autoPlay
@@ -91,7 +93,7 @@ function HomeContent() {
                   <source src="/demo.mp4" type="video/mp4" />
                   {/* Fallback to GIF if video doesn't work */}
                   <Image
-                    src="/demo-min.gif"
+                    src="/demo.gif"
                     alt="Secreq Demo - AI filling out security questionnaires"
                     width={1200}
                     height={675}
@@ -99,6 +101,69 @@ function HomeContent() {
                   />
                 </video>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* See it in action */}
+        <section className="py-16">
+          <div className="container mx-auto px-6">
+            <div className="text-center mb-10">
+              <h3 className="text-3xl font-bold text-foreground">See it in action</h3>
+              <p className="text-muted-foreground mt-2">A quick look at the core screens</p>
+            </div>
+            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="border-border/50 overflow-hidden">
+                <div className="relative bg-background">
+                  <Image
+                    src="/add-data.gif"
+                    alt="Secreq Demo - AI filling out security questionnaires"
+                    width={1200}
+                    height={675}
+                    className="w-full h-auto"
+                  />
+                </div>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Create an Answer Bank</CardTitle>
+                  <CardDescription>Upload your policies and past answers to power precise drafts with citations.</CardDescription>
+                </CardHeader>
+              </Card>
+
+              <Card className="border-border/50 overflow-hidden">
+                <div className="relative">
+                  <Image
+                    src="/dash-min.png"
+                    alt="Dashboard overview"
+                    width={1200}
+                    height={675}
+                    className="w-full h-auto"
+                  />
+                </div>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Dashboard</CardTitle>
+                  <CardDescription>Track questionnaires, status, and progress at a glance.</CardDescription>
+                </CardHeader>
+              </Card>
+
+              <Card className="border-border/50 overflow-hidden">
+                <div className="relative">
+                  <Image src="/workbench-min.png" alt="AI Workbench formatting preserved" width={1200} height={675} className="w-full h-auto" />
+                </div>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">AI Workbench</CardTitle>
+                  <CardDescription>Draft answers in a spreadsheet UI while preserving Excel formatting.</CardDescription>
+                </CardHeader>
+              </Card>
+
+              <Card className="border-border/50 overflow-hidden">
+                <div className="relative">
+                  <Image src="/team-min.png" alt="Add your team" width={1200} height={675} className="w-full h-auto" />
+                </div>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Add your Team</CardTitle>
+                  <CardDescription>Invite collaborators and work together with assignments and review.</CardDescription>
+                </CardHeader>
+              </Card>
             </div>
           </div>
         </section>
