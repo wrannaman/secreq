@@ -96,6 +96,18 @@ export default function QuestionnaireWorkbenchPage() {
     loadDatasets();
   }, [currentOrganization?.org_id, toast]);
 
+  // If there's exactly one dataset and none selected yet for this questionnaire, auto-select it for convenience
+  useEffect(() => {
+    if (!questionnaire) return;
+    if (selectedDatasetIds.length > 0) return;
+    if (allDatasets.length === 1) {
+      const only = allDatasets[0];
+      setSelectedDatasetIds([only.id]);
+      persistSelectedDatasets([only.id]);
+      toast.info('Dataset selected', { description: `${only.name} was auto-selected. You can change this anytime.` });
+    }
+  }, [questionnaire, allDatasets, selectedDatasetIds.length, toast]);
+
   const persistSelectedDatasets = async (ids) => {
     if (!id) return;
     const supabase = createClient();
@@ -577,25 +589,38 @@ export default function QuestionnaireWorkbenchPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <SpreadsheetViewer
-                    ref={viewerRef}
-                    signedUrl={activeSignedUrl}
-                    filename={activeFilename || questionnaire.original_file_name}
-                    selectionMode={selectionMode}
-                    onSelectionChange={setSelectedRows}
-                    onRowsChange={handleRowsChange}
-                    onRangeSelect={(range) => {
-                      if (!range) { setQuestionRange(null); setAnswerRange(null); return; }
-                      if (range.mode === 'question') {
-                        setQuestionRange(range);
-                        setSelectionMode('answer');
-                        toast.info('Now select the answer range', { description: 'Pick the destination cells for the AI answers.' });
-                      }
-                      if (range.mode === 'answer') setAnswerRange(range);
-                    }}
-                    highlightRanges={{ question: questionRange, answer: answerRange }}
-                    onClearSelections={() => { setQuestionRange(null); setAnswerRange(null); setSelectionMode('question'); }}
-                  />
+                  {/* Gate viewer until at least one dataset is selected to make the requirement clear */}
+                  {selectedDatasetIds.length === 0 ? (
+                    <div className="border rounded p-6 bg-muted/30 text-sm text-muted-foreground">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5">⚠️</div>
+                        <div>
+                          <div className="text-foreground font-medium">Select a dataset to enable AI</div>
+                          <div className="mt-1">Choose one or more datasets above. We use your datasets to draft answers with citations.</div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <SpreadsheetViewer
+                      ref={viewerRef}
+                      signedUrl={activeSignedUrl}
+                      filename={activeFilename || questionnaire.original_file_name}
+                      selectionMode={selectionMode}
+                      onSelectionChange={setSelectedRows}
+                      onRowsChange={handleRowsChange}
+                      onRangeSelect={(range) => {
+                        if (!range) { setQuestionRange(null); setAnswerRange(null); return; }
+                        if (range.mode === 'question') {
+                          setQuestionRange(range);
+                          setSelectionMode('answer');
+                          toast.info('Now select the answer range', { description: 'Pick the destination cells for the AI answers.' });
+                        }
+                        if (range.mode === 'answer') setAnswerRange(range);
+                      }}
+                      highlightRanges={{ question: questionRange, answer: answerRange }}
+                      onClearSelections={() => { setQuestionRange(null); setAnswerRange(null); setSelectionMode('question'); }}
+                    />
+                  )}
                   <div className="mt-3 flex items-center flex-wrap gap-3 text-xs">
                     {selectedRowRange() && (
                       <div className="px-2 py-1 border border-muted rounded bg-muted">
@@ -617,6 +642,9 @@ export default function QuestionnaireWorkbenchPage() {
                         const mismatch = !!(questionRange && answerRange && ((questionRange.end - questionRange.start) !== (answerRange.end - answerRange.start)));
                         return (
                           <>
+                            {selectedDatasetIds.length === 0 && (
+                              <span className="text-xs text-destructive mr-2">Select at least one dataset to enable AI</span>
+                            )}
                             {mismatch && (
                               <span className="text-xs text-destructive mr-2">Ranges must be the same length</span>
                             )}

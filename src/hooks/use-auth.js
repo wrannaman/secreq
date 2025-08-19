@@ -32,10 +32,11 @@ export const useAuthStore = create((set, get) => ({
 
   signInWithGoogle: async () => {
     const supabase = getSupabaseClient()
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/$/, '')
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${appUrl}/auth/callback`,
         // Use PKCE flow for better security
         flowType: 'pkce'
       }
@@ -45,11 +46,12 @@ export const useAuthStore = create((set, get) => ({
 
   signInWithMagicLink: async (email) => {
     const supabase = getSupabaseClient()
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/$/, '')
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: true,
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${appUrl}/auth/callback`,
         // Use PKCE flow for better security
         flowType: 'pkce'
       }
@@ -181,9 +183,9 @@ export function AuthProvider({ children }) {
           // Best-effort Slack notification when a session exists
           try {
             if (session?.user?.email) {
-              fetch('/api/notify-signup', { method: 'POST' }).catch(() => {})
+              fetch('/api/notify-signup', { method: 'POST' }).catch(() => { })
             }
-          } catch {}
+          } catch { }
         }
 
         store.setLoading(false)
