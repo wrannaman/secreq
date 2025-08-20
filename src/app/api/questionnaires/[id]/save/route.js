@@ -4,39 +4,41 @@ import ExcelJS from 'exceljs'
 
 export async function POST(req, { params }) {
   try {
-    const { id } = params
+    const { id } = await params
     const body = await req.json()
-    const { rows = [], columnWidths = [], merges = [], filename } = body || {}
+    const { rows = [], sheetName, basePath, filename } = body || {}
     if (!id || !Array.isArray(rows)) {
       return NextResponse.json({ error: 'id and rows required' }, { status: 400 })
     }
-    console.log('💾 [Save] Saving version', { rowCount: rows.length, maxCols: Math.max(...rows.map(r => (r.cells || []).length), 0) })
+    console.log('💾 [Save] Saving version (preserving styles)', { rowCount: rows.length })
 
-    // Create workbook exactly as UI grid
-    const wb = new ExcelJS.Workbook()
-    const ws = wb.addWorksheet('Sheet1')
-    const maxCols = Math.max(...rows.map(r => (r.cells || []).length), 0)
-    ws.columns = Array.from({ length: maxCols }, (_, i) => ({ width: Math.max(8, Math.min(60, (columnWidths?.[i] || 140) / 7)) }))
-    for (const r of rows) {
-      const values = []
-      for (let c = 0; c < maxCols; c++) {
-        const cell = r.cells?.[c]
-        values.push(cell?.value ?? '')
-      }
-      ws.addRow(values)
+    // Load original workbook to preserve styles
+    const supabase = await createServiceClient()
+    let wb = new ExcelJS.Workbook()
+    if (basePath) {
+      const { data: file, error: dlErr } = await supabase.storage.from('secreq').download(basePath)
+      if (dlErr) throw dlErr
+      const arrayBuf = await file.arrayBuffer()
+      await wb.xlsx.load(arrayBuf)
     }
-    merges.forEach(m => {
-      if (!m || !m.rowSpan || !m.colSpan) return
-      const r1 = m.row
-      const c1 = m.col
-      const r2 = r1 + m.rowSpan - 1
-      const c2 = c1 + m.colSpan - 1
-      try { ws.mergeCells(r1, c1, r2, c2) } catch (_) { }
-    })
+    if ((wb.worksheets || []).length === 0) {
+      wb = new ExcelJS.Workbook()
+      wb.addWorksheet(sheetName || 'Sheet1')
+    }
+    const ws = sheetName ? (wb.getWorksheet(sheetName) || wb.addWorksheet(sheetName)) : (wb.worksheets[0])
+    const maxCols = Math.max(...rows.map(r => (r.cells || []).length), 0)
+    for (const r of rows) {
+      const rowIdx = r.index
+      const row = ws.getRow(rowIdx)
+      for (let c = 1; c <= maxCols; c++) {
+        const val = r.cells?.[c - 1]?.value ?? ''
+        row.getCell(c).value = val
+      }
+      row.commit && row.commit()
+    }
 
     const buffer = await wb.xlsx.writeBuffer()
 
-    const supabase = await createServiceClient()
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const path = `questionnaires/${id}/versions/${timestamp}.xlsx`
     const { error } = await supabase.storage

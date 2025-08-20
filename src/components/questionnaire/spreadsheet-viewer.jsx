@@ -3,12 +3,16 @@
 import { useEffect, useMemo, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
 import ExcelJS from 'exceljs'
 
-const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, filename, onColumnHeaderClick, highlightColumns = {}, onSelectionChange, onRowsChange, selectionMode = 'question', onRangeSelect, highlightRanges = {}, onClearSelections }, ref) {
+const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, filename, onColumnHeaderClick, highlightColumns = {}, onSelectionChange, onRowsChange, selectionMode = 'question', onRangeSelect, highlightRanges = {}, onClearSelections, onSheetChange }, ref) {
   const [rows, setRows] = useState([])
   const [maxColumns, setMaxColumns] = useState(0)
   const [mergeMap, setMergeMap] = useState(new Map())
   const [skipCells, setSkipCells] = useState(new Set())
   const [columnWidths, setColumnWidths] = useState({})
+
+  // Multi-sheet support
+  const [sheets, setSheets] = useState([]) // [{ name, rows, maxColumns, mergeMap, skipCells, columnWidths }]
+  const [activeSheet, setActiveSheet] = useState(null) // sheet name
   const [selected, setSelected] = useState(null) // {r, c}
   const [editing, setEditing] = useState(null) // {r, c}
   const [editingValue, setEditingValue] = useState("")
@@ -121,10 +125,23 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
             }))
           }))
           normalized = trimTrailingEmptyRows(normalized)
-          setRows(normalized)
-          setMaxColumns(maxCols)
-          setMergeMap(new Map())
-          setSkipCells(new Set())
+          // Single-sheet CSV
+          const csvSheet = {
+            name: 'Sheet1',
+            rows: normalized,
+            maxColumns: maxCols,
+            mergeMap: new Map(),
+            skipCells: new Set(),
+            columnWidths: {}
+          }
+          setSheets([csvSheet])
+          setActiveSheet('Sheet1')
+          // Load into active view
+          setRows(csvSheet.rows)
+          setMaxColumns(csvSheet.maxColumns)
+          setMergeMap(csvSheet.mergeMap)
+          setSkipCells(csvSheet.skipCells)
+          setColumnWidths(csvSheet.columnWidths)
           try { console.log('[SpreadsheetViewer] CSV loaded', { rows: normalized.length, cols: maxCols, filename }) } catch (_) { }
           return
         } catch (err) {
@@ -143,10 +160,21 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
             }))
           }))
           normalized = trimTrailingEmptyRows(normalized)
-          setRows(normalized)
-          setMaxColumns(maxCols)
-          setMergeMap(new Map())
-          setSkipCells(new Set())
+          const csvSheet = {
+            name: 'Sheet1',
+            rows: normalized,
+            maxColumns: maxCols,
+            mergeMap: new Map(),
+            skipCells: new Set(),
+            columnWidths: {}
+          }
+          setSheets([csvSheet])
+          setActiveSheet('Sheet1')
+          setRows(csvSheet.rows)
+          setMaxColumns(csvSheet.maxColumns)
+          setMergeMap(csvSheet.mergeMap)
+          setSkipCells(csvSheet.skipCells)
+          setColumnWidths(csvSheet.columnWidths)
           try { console.log('[SpreadsheetViewer] CSV (fallback) loaded', { rows: normalized.length, cols: maxCols, filename }) } catch (_) { }
           return
         }
@@ -157,73 +185,69 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
       const buf = await res.arrayBuffer()
       const workbook = new ExcelJS.Workbook()
       await workbook.xlsx.load(buf)
-
-      const ws = workbook.worksheets.find(w => w.rowCount > 0) || workbook.worksheets[0]
-      const dataRows = []
-      // Determine a safe column limit for viewing
-      const wsColCount = ws?.columnCount || (ws?.columns?.length || 0) || 0
-      const colLimit = Math.min(Math.max(wsColCount, 1), 16384, 512) // cap to Excel max and UI cap
-      let maxCols = colLimit
-
-      // Build merge maps from worksheet model
-      const merges = (ws.model && ws.model.merges) ? ws.model.merges : []
-      const mergeMapLocal = new Map()
-      const skipLocal = new Set()
+      // Build per-sheet models
+      const builtSheets = []
       const addrToRC = (addr) => {
         const match = addr.match(/([A-Z]+)(\d+)/)
         const col = lettersToNumber(match[1])
         const row = parseInt(match[2], 10)
         return { row, col }
       }
-      merges.forEach(range => {
-        const [start, end] = range.split(":")
-        const { row: r1, col: c1 } = addrToRC(start)
-        const { row: r2, col: c2 } = addrToRC(end)
-        mergeMapLocal.set(`${r1}:${c1}`, { rowSpan: r2 - r1 + 1, colSpan: c2 - c1 + 1 })
-        for (let r = r1; r <= r2; r++) {
-          for (let c = c1; c <= c2; c++) {
-            if (!(r === r1 && c === c1)) skipLocal.add(`${r}:${c}`)
-          }
-        }
-      })
 
-      for (let r = 1; r <= ws.rowCount; r++) {
-        const excelRow = ws.getRow(r)
-        const rowData = { index: r, cells: [] }
-        // Use the safe column limit rather than row.cellCount (which can be misleading on sparse rows)
-        for (let c = 1; c <= colLimit; c++) {
-          const cell = excelRow.getCell(c)
-          const v = normalizeCellValue(cell.value)
-          rowData.cells.push({ column: c, value: v })
+      for (const ws of workbook.worksheets) {
+        const wsColCount = ws?.columnCount || (ws?.columns?.length || 0) || 0
+        const colLimit = Math.min(Math.max(wsColCount, 1), 16384, 512)
+        const merges = (ws.model && ws.model.merges) ? ws.model.merges : []
+        const mergeMapLocal = new Map()
+        const skipLocal = new Set()
+        merges.forEach(range => {
+          const [start, end] = range.split(":")
+          const { row: r1, col: c1 } = addrToRC(start)
+          const { row: r2, col: c2 } = addrToRC(end)
+          mergeMapLocal.set(`${r1}:${c1}`, { rowSpan: r2 - r1 + 1, colSpan: c2 - c1 + 1 })
+          for (let r = r1; r <= r2; r++) {
+            for (let c = c1; c <= c2; c++) {
+              if (!(r === r1 && c === c1)) skipLocal.add(`${r}:${c}`)
+            }
+          }
+        })
+
+        const dataRows = []
+        for (let r = 1; r <= ws.rowCount; r++) {
+          const excelRow = ws.getRow(r)
+          const rowData = { index: r, cells: [] }
+          for (let c = 1; c <= colLimit; c++) {
+            const cell = excelRow.getCell(c)
+            const v = normalizeCellValue(cell.value)
+            rowData.cells.push({ column: c, value: v })
+          }
+          dataRows.push(rowData)
         }
-        dataRows.push(rowData)
+
+        const trimmed = dataRows // optional trim
+        builtSheets.push({
+          name: ws.name || `Sheet${builtSheets.length + 1}`,
+          rows: trimmed,
+          maxColumns: colLimit,
+          mergeMap: mergeMapLocal,
+          skipCells: skipLocal,
+          columnWidths: {}
+        })
       }
 
-      try {
-        console.log('[SpreadsheetViewer] Before trimming', {
-          totalRows: dataRows.length,
-          firstFewRows: dataRows.slice(0, 5).map(r => ({
-            index: r.index,
-            firstCells: r.cells.slice(0, 3).map(c => c.value)
-          }))
-        })
-      } catch (_) { }
+      // Prefer first non-empty sheet
+      const firstNonEmpty = builtSheets.find(s => Array.isArray(s.rows) && s.rows.length > 0) || builtSheets[0]
+      setSheets(builtSheets)
+      setActiveSheet(firstNonEmpty?.name || null)
 
-      // Temporarily disable trimming to debug
-      const trimmed = dataRows // trimTrailingEmptyRows(dataRows)
-
-      try {
-        console.log('[SpreadsheetViewer] After trimming (DISABLED)', {
-          trimmedRows: trimmed.length,
-          removedRows: dataRows.length - trimmed.length
-        })
-      } catch (_) { }
-
-      setRows(trimmed)
-      setMaxColumns(maxCols)
-      setMergeMap(mergeMapLocal)
-      setSkipCells(skipLocal)
-      try { console.log('[SpreadsheetViewer] XLSX loaded', { rows: trimmed.length, cols: maxCols, filename }) } catch (_) { }
+      if (firstNonEmpty) {
+        setRows(firstNonEmpty.rows)
+        setMaxColumns(firstNonEmpty.maxColumns)
+        setMergeMap(firstNonEmpty.mergeMap)
+        setSkipCells(firstNonEmpty.skipCells)
+        setColumnWidths(firstNonEmpty.columnWidths)
+        try { console.log('[SpreadsheetViewer] XLSX loaded', { sheetCount: builtSheets.length, active: firstNonEmpty.name, rows: firstNonEmpty.rows.length, cols: firstNonEmpty.maxColumns, filename }) } catch (_) { }
+      }
     }
     load()
   }, [signedUrl])
@@ -243,6 +267,42 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
     const id = requestAnimationFrame(() => computeVisibleColumns())
     return () => cancelAnimationFrame(id)
   }, [computeVisibleColumns])
+
+  // Switch active sheet helper: persists current view state back into sheets[], then loads the target
+  const switchActiveSheet = useCallback((targetName) => {
+    if (!targetName || targetName === activeSheet) return
+    setSheets(prev => {
+      const cloned = prev.map(s => ({ ...s }))
+      // persist current sheet state back
+      const idxPrev = cloned.findIndex(s => s.name === activeSheet)
+      if (idxPrev >= 0) {
+        cloned[idxPrev] = {
+          ...cloned[idxPrev],
+          rows,
+          maxColumns,
+          mergeMap,
+          skipCells,
+          columnWidths
+        }
+      }
+      // load next
+      const next = cloned.find(s => s.name === targetName)
+      if (next) {
+        // clear selections and editing when switching
+        clearAllSelections()
+        setRows(next.rows)
+        setMaxColumns(next.maxColumns)
+        setMergeMap(next.mergeMap)
+        setSkipCells(next.skipCells)
+        setColumnWidths(next.columnWidths || {})
+      }
+      return cloned
+    })
+    setActiveSheet(targetName)
+    if (onSheetChange) {
+      try { onSheetChange(targetName) } catch (_) { }
+    }
+  }, [activeSheet, rows, maxColumns, mergeMap, skipCells, columnWidths, onSheetChange])
 
   const beginDrag = (rowIndex, colIndex) => {
     if (editing) return
@@ -456,6 +516,9 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
       })
       return out
     },
+    getSheetNames: () => sheets.map(s => s.name),
+    getActiveSheetName: () => activeSheet,
+    setActiveSheetName: (name) => switchActiveSheet(name),
     setRowsFromSnapshot: (snapshotRows = []) => {
       const normalized = Array.isArray(snapshotRows) ? snapshotRows.map((r, idx) => ({
         index: r.index || idx + 1,
@@ -465,12 +528,16 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
       setSelected(null)
       setSelectedRows(new Set())
       clearAllSelections()
+      // persist into current active sheet model
+      setSheets(prev => prev.map(s => s.name === activeSheet ? { ...s, rows: normalized } : s))
     },
     setCellValue: (rowIndex, colIndex, value) => {
       setRows(prev => {
         const next = prev.map(row => ({ ...row, cells: row.cells.map(cell => ({ ...cell })) }))
         const cell = next[rowIndex - 1]?.cells?.[colIndex - 1]
         if (cell) cell.value = value
+        // also persist into sheet model
+        setSheets(prevSheets => prevSheets.map(s => s.name === activeSheet ? { ...s, rows: next } : s))
         return next
       })
     },
@@ -516,14 +583,35 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
 
   return (
     <div ref={rootRef} className="w-full" tabIndex={0} onKeyDown={handleKeyDown} onCopy={handleCopy} onPaste={handlePaste}>
-      {/* <div className="text-sm text-muted-foreground mb-2">{filename}</div> */}
+      {/* Sheet tabs */}
+      {sheets.length > 1 && (
+        <div className="flex items-center gap-2 mb-2 overflow-x-auto no-scrollbar">
+          {sheets.map((s) => (
+            <button
+              key={s.name}
+              className={`px-3 py-1.5 text-xs rounded border transition-colors whitespace-nowrap ${activeSheet === s.name ? 'bg-muted border-primary text-foreground' : 'bg-background hover:bg-muted/70 border-muted-foreground/30 text-muted-foreground'}`}
+              onClick={() => switchActiveSheet(s.name)}
+              title={s.name}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
       <div
         ref={containerRef}
         onScroll={onScroll}
         className="border rounded overflow-auto bg-background"
         style={{ height: viewportHeight }}
       >
-        <table className="w-max min-w-full text-xs border-collapse" onMouseDown={() => rootRef.current && rootRef.current.focus()}>
+        <table
+          className="w-max min-w-full text-xs border-collapse"
+          onMouseDown={(e) => {
+            const tag = (e.target && e.target.tagName ? e.target.tagName.toLowerCase() : '')
+            if (tag === 'textarea' || tag === 'input') return
+            if (rootRef.current) rootRef.current.focus()
+          }}
+        >
           <thead className="sticky top-0 bg-background z-10">
             <tr>
               <th className="w-10 border bg-muted text-center select-none">
@@ -595,12 +683,13 @@ const SpreadsheetViewer = forwardRef(function SpreadsheetViewer({ signedUrl, fil
                         ${highlightColumns[c] ? (highlightColumns[c] === 'question' ? 'bg-blue-100 text-blue-950 dark:bg-blue-900/20 dark:text-blue-100' : 'bg-emerald-100 text-emerald-950 dark:bg-emerald-900/20 dark:text-emerald-100') : ''}`}
                       style={{ width: columnWidths[c] || 140 }}
                       onMouseDown={(e) => {
-                        e.preventDefault();
-                        // Do not clear editor if clicking the same editing cell
-                        if (!(editing && editing.r === row.index && editing.c === c)) {
-                          beginDrag(row.index, c);
-                          setSelected({ r: row.index, c })
+                        // If currently editing this same cell, allow default so textarea can focus
+                        if (editing && editing.r === row.index && editing.c === c) {
+                          return
                         }
+                        e.preventDefault();
+                        beginDrag(row.index, c);
+                        setSelected({ r: row.index, c })
                       }}
                       onMouseEnter={() => extendDrag(row.index, c)}
                       onMouseUp={(e) => { e.preventDefault(); endDrag(row.index, c) }}

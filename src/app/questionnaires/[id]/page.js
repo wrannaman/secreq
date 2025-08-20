@@ -43,6 +43,7 @@ export default function QuestionnaireWorkbenchPage() {
   const [dirty, setDirty] = useState(false);
   const [activeSignedUrl, setActiveSignedUrl] = useState(null);
   const [activeFilename, setActiveFilename] = useState(null);
+  const [activeFilePath, setActiveFilePath] = useState(null);
   const autosaveRef = useRef(null); // unused now; kept for future
   const lastSavedHashRef = useRef(null); // unused now; kept for future
   const suppressDirtyRef = useRef(false);
@@ -248,9 +249,8 @@ export default function QuestionnaireWorkbenchPage() {
   const saveVersion = async () => {
     try {
       const rows = viewerRef.current?.getRows?.() || []
-      const columnWidths = viewerRef.current?.getColumnWidths?.() || []
-      const merges = viewerRef.current?.getMerges?.() || []
-      const payload = { rows, columnWidths, merges, filename: `${questionnaire?.name || 'questionnaire'}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.xlsx` }
+      const sheetName = viewerRef.current?.getActiveSheetName?.() || undefined
+      const payload = { rows, sheetName, basePath: activeFilePath, filename: `${questionnaire?.name || 'questionnaire'}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.xlsx` }
       const res = await fetch(`/api/questionnaires/${id}/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       if (!res.ok) throw new Error('Save failed')
       const json = await res.json()
@@ -259,6 +259,7 @@ export default function QuestionnaireWorkbenchPage() {
       // Only update the filename for UI display purposes - keep the same signed URL to avoid reload
       // The data in the viewer is already correct (it's what we just saved)
       setActiveFilename(json.filename)
+      setActiveFilePath(json.path)
       setDirty(false)
       toast.success('Saved version', { description: json.version })
 
@@ -306,6 +307,7 @@ export default function QuestionnaireWorkbenchPage() {
           suppressDirtyRef.current = true;
           setActiveSignedUrl(sig?.signedUrl || null);
           setActiveFilename(questionnaire.original_file_name);
+          setActiveFilePath(questionnaire.original_file_path);
           setDirty(false);
           setTimeout(() => { suppressDirtyRef.current = false }, 1200);
           return;
@@ -316,6 +318,7 @@ export default function QuestionnaireWorkbenchPage() {
         suppressDirtyRef.current = true;
         setActiveSignedUrl(sig?.signedUrl || null);
         setActiveFilename(latest.name);
+        setActiveFilePath(prefix + latest.name);
         setDirty(false);
         setTimeout(() => { suppressDirtyRef.current = false }, 1200);
       } catch (e) {
@@ -532,6 +535,7 @@ export default function QuestionnaireWorkbenchPage() {
                                         suppressDirtyRef.current = true
                                         setActiveSignedUrl(sig?.signedUrl || null)
                                         setActiveFilename(v.name)
+                                        setActiveFilePath(v.path)
                                         setDirty(false)
                                         toast.success('Loaded version', { description: v.name })
                                       } catch (e) {
@@ -564,9 +568,8 @@ export default function QuestionnaireWorkbenchPage() {
                         onClick={async () => {
                           try {
                             const rows = viewerRef.current?.getRows?.() || []
-                            const columnWidths = viewerRef.current?.getColumnWidths?.() || []
-                            const merges = viewerRef.current?.getMerges?.() || []
-                            const res = await fetch(`/api/questionnaires/${id}/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows, columnWidths, merges, filename: `${questionnaire.name || 'questionnaire'}-export.xlsx` }) })
+                            const sheetName = viewerRef.current?.getActiveSheetName?.() || undefined
+                            const res = await fetch(`/api/questionnaires/${id}/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows, sheetName, basePath: activeFilePath, filename: `${questionnaire.name || 'questionnaire'}-export.xlsx` }) })
                             if (!res.ok) throw new Error('Export failed')
                             const blob = await res.blob()
                             const url = URL.createObjectURL(blob)
@@ -670,9 +673,8 @@ export default function QuestionnaireWorkbenchPage() {
                               onClick={async () => {
                                 try {
                                   const rows = viewerRef.current?.getRows?.() || []
-                                  const columnWidths = viewerRef.current?.getColumnWidths?.() || []
-                                  const merges = viewerRef.current?.getMerges?.() || []
-                                  const res = await fetch(`/api/questionnaires/${id}/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows, columnWidths, merges, filename: `${questionnaire.name || 'questionnaire'}-export.xlsx` }) })
+                                  const sheetName = viewerRef.current?.getActiveSheetName?.() || undefined
+                                  const res = await fetch(`/api/questionnaires/${id}/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows, sheetName, basePath: activeFilePath, filename: `${questionnaire.name || 'questionnaire'}-export.xlsx` }) })
                                   if (!res.ok) throw new Error('Export failed')
                                   const blob = await res.blob()
                                   const url = URL.createObjectURL(blob)

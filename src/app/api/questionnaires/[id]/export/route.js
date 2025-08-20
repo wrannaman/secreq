@@ -1,36 +1,38 @@
 import { NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
+import { createClient as createServiceClient } from '@/utils/supabase/server'
 
 export async function POST(req, { params }) {
   try {
-    const { id } = params
-    const { rows, columnWidths = [], merges = [], filename = `questionnaire-${id}.xlsx` } = await req.json()
-    if (!Array.isArray(rows)) {
-      return NextResponse.json({ error: 'rows required' }, { status: 400 })
-    }
+    const { id } = await params
+    const { rows, sheetName, basePath, filename = `questionnaire-${id}.xlsx` } = await req.json()
+    if (!Array.isArray(rows)) return NextResponse.json({ error: 'rows required' }, { status: 400 })
+    if (!basePath) return NextResponse.json({ error: 'basePath required to preserve styles' }, { status: 400 })
 
+    // Load original workbook from storage to preserve formatting/styles
+    const supabase = await createServiceClient()
+    const { data: file, error: dlErr } = await supabase.storage.from('secreq').download(basePath)
+    if (dlErr) throw dlErr
+    const arrayBuf = await file.arrayBuffer()
     const wb = new ExcelJS.Workbook()
-    const ws = wb.addWorksheet('Sheet1')
+    await wb.xlsx.load(arrayBuf)
+
+    // Pick target sheet
+    const ws = sheetName ? wb.getWorksheet(sheetName) : (wb.worksheets[0] || wb.addWorksheet('Sheet1'))
+    if (!ws) return NextResponse.json({ error: `Worksheet not found: ${sheetName}` }, { status: 400 })
+
+    // Overlay values without touching styles/widths/merges
     const maxCols = Math.max(...rows.map(r => (r.cells || []).length), 0)
-    ws.columns = Array.from({ length: maxCols }, (_, i) => ({ width: Math.max(8, Math.min(60, (columnWidths?.[i] || 140) / 7)) }))
     for (const r of rows) {
-      const values = []
-      for (let c = 0; c < maxCols; c++) {
-        const cell = r.cells?.[c]
-        values.push(cell?.value ?? '')
+      const rowIdx = r.index
+      const row = ws.getRow(rowIdx)
+      for (let c = 1; c <= maxCols; c++) {
+        const val = r.cells?.[c - 1]?.value ?? ''
+        row.getCell(c).value = val
       }
-      ws.addRow(values)
+      row.commit && row.commit()
     }
 
-    // Apply merges (best-effort rendering like viewer)
-    merges.forEach(m => {
-      if (!m || !m.rowSpan || !m.colSpan) return
-      const r1 = m.row
-      const c1 = m.col
-      const r2 = r1 + m.rowSpan - 1
-      const c2 = c1 + m.colSpan - 1
-      ws.mergeCells(r1, c1, r2, c2)
-    })
     const buffer = await wb.xlsx.writeBuffer()
     return new NextResponse(buffer, {
       status: 200,
