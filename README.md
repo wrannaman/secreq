@@ -1,6 +1,12 @@
 
 # SecReq
 
+
+- offser 
+    you set a goal for them. then they can get their money back later. 
+- if we can publicly use you as a reference and put you on the site with a quote, it's free? but like forever? there would have to be ongoign stuff.
+
+
 AI-powered security questionnaire platform that helps organizations efficiently respond to security assessments using intelligent document analysis and automated answer generation.
 
 

@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ModeToggle } from "@/components/mode-toggle";
 import { useAuth } from "@/hooks/use-auth";
 import { PublicOnly } from "@/components/auth-guard";
-import { Shield, ArrowRight, Play, CheckCircle2, ShieldCheck, Sparkles, Gift } from "lucide-react";
+import { Shield, ArrowRight, Play, CheckCircle2, ShieldCheck, Sparkles, Gift, Quote } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -42,6 +42,39 @@ function HomeContent() {
       </header>
 
       <main>
+        {/* Proof Section (Above the fold) */}
+        <section className="bg-muted/30">
+          <div className="container mx-auto px-6 py-8">
+            <div className="text-center mb-4">
+              <Badge variant="secondary">Proof</Badge>
+            </div>
+            <p className="text-center text-sm text-muted-foreground mb-6">
+              Used by YC companies like <span className="font-semibold text-foreground">journey.io</span>
+            </p>
+            <div className="max-w-3xl mx-auto">
+              <Card className="border-border/50">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-4">
+                    <Image
+                      src="/proof/danny.jpg"
+                      alt="Danny Chu"
+                      width={40}
+                      height={40}
+                      className="rounded-full object-cover w-10 h-10 mt-1 flex-shrink-0"
+                    />
+                    <Quote className="h-5 w-5 text-primary mt-2 flex-shrink-0" />
+                    <div className="text-left">
+                      <p className="text-base md:text-lg text-foreground">
+                        "With this tool I can accurately and quickly fill out securitiy requests. The latest one saved me about 4 hours and we landed a 6 figure deal!"
+                      </p>
+                      <p className="mt-2 text-sm text-muted-foreground font-medium">Danny Chu — CEO, Journey.io (YC W21)</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
         {/* Hero Section */}
         <section className="container mx-auto px-6 py-20 text-center">
           <div className="max-w-4xl mx-auto">
@@ -49,7 +82,7 @@ function HomeContent() {
               Complete vendor security questionnaires in <span className="text-primary">minutes</span>
             </h2>
             <p className="text-xl md:text-2xl text-foreground font-semibold leading-relaxed">
-              AI-powered workbench that preserves formatting! No More Copy Paste! $1 per question we help with.
+              AI-powered workbench that preserves formatting! No More Copy Paste! Usage‑based pricing.
             </p>
             <div className="mt-4 mb-6 flex flex-wrap items-center justify-center gap-2">
               <Badge variant="outline">No seats</Badge>
@@ -206,7 +239,7 @@ function HomeContent() {
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-5 w-5 text-primary" /> Usage‑based pricing</CardTitle>
-                  <CardDescription>Pay <span className="font-medium text-foreground">$1 per question</span> we help with. First 3 questionnaires are on us.</CardDescription>
+                  <CardDescription>Only pay when we help with a suggested answer. First 3 questionnaires are free.</CardDescription>
                 </CardHeader>
               </Card>
               <Card className="sm:col-span-2 lg:col-span-1 border-border/50">
@@ -303,7 +336,7 @@ function HomeContent() {
 
                     <div className="border-t pt-6">
                       <h4 className="text-xl font-semibold text-foreground mb-3">Pricing</h4>
-                      <div className="text-3xl font-bold text-primary mb-1">$1 <span className="text-base font-normal text-muted-foreground">per question</span></div>
+                      <p className="text-sm text-muted-foreground mb-3">Usage‑based — only pay when we help with a suggested answer.</p>
                       <ul className="space-y-2 text-sm text-muted-foreground">
                         <li className="flex items-center gap-2">
                           <CheckCircle2 className="h-4 w-4 text-primary" />
@@ -464,7 +497,7 @@ function HomeContent() {
           <div className="container mx-auto px-6 text-center">
             <div className="max-w-3xl mx-auto">
               <h3 className="text-4xl font-bold text-foreground mb-6">Stop losing weeks to copy‑paste. <span className="text-primary">Upload your next questionnaire and watch Secreq draft it in minutes.</span></h3>
-              <p className="text-xl text-muted-foreground mb-8">$1 per question. First 3 questionnaires free.</p>
+              <p className="text-xl text-muted-foreground mb-8">Usage‑based. First 3 questionnaires free.</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button size="lg" asChild className="text-lg px-12 py-6">
                   <Link href="/auth/login">Start Free<ArrowRight className="ml-2 h-5 w-5" /></Link>
