@@ -6,12 +6,41 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableCaption } from "@/components/ui/table";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useAuth } from "@/hooks/use-auth";
 import { PublicOnly } from "@/components/auth-guard";
 import { Shield, ArrowRight, Play, CheckCircle2, ShieldCheck, Sparkles, Gift, Quote } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+
+export const HOW_DIFFERENT_TABLE_ROWS = [
+  {
+    capability: "Primary Job",
+    platforms: "Internal Program Management",
+    secreq: "External Customer Response",
+  },
+  {
+    capability: "Core Workflow",
+    platforms: "Policy creation & evidence collection",
+    secreq: "AI-powered answer drafting & high-fidelity Excel export",
+  },
+  {
+    capability: "Primary Use Case",
+    platforms: "Getting you SOC 2 certified (a 6-9 month process)",
+    secreq: "Clearing a customer's urgent questionnaire (a 3-hour task)",
+  },
+  {
+    capability: "Key Differentiator",
+    platforms: "Broad platform for building your internal program",
+    secreq: "Preserves 100% of your customer's original Excel formatting",
+  },
+  {
+    capability: "Business Value",
+    platforms: "Lets you claim you are secure and compliant",
+    secreq: "Lets you prove it quickly to unblock a specific sales deal",
+  },
+];
 
 function HomeContent() {
   const { isAuthenticated } = useAuth();
@@ -65,7 +94,7 @@ function HomeContent() {
                     <Quote className="h-5 w-5 text-primary mt-2 flex-shrink-0" />
                     <div className="text-left">
                       <p className="text-base md:text-lg text-foreground">
-                        "With this tool I can accurately and quickly fill out securitiy requests. The latest one saved me about 4 hours and we landed a 6 figure deal!"
+                        "With this tool I can quickly fill out security requests and preserve the original formatting. The latest one saved me about 4 hours and we landed a 6 figure deal!"
                       </p>
                       <p className="mt-2 text-sm text-muted-foreground font-medium">Danny Chu — CEO, Journey.io (YC W21)</p>
                     </div>
@@ -79,10 +108,10 @@ function HomeContent() {
         <section className="container mx-auto px-6 py-20 text-center">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-5xl md:text-6xl font-bold text-foreground mb-6 tracking-tight">
-              Complete vendor security questionnaires in <span className="text-primary">minutes</span>
+              Stop Losing Deals to Security Questionnaires.
             </h2>
             <p className="text-xl md:text-2xl text-foreground font-semibold leading-relaxed">
-              AI-powered workbench that preserves formatting! No More Copy Paste! Usage‑based pricing.
+              The AI-powered workbench that preserves your customer's formatting, so you can answer in hours, not weeks.
             </p>
             <div className="mt-4 mb-6 flex flex-wrap items-center justify-center gap-2">
               <Badge variant="outline">No seats</Badge>
@@ -146,6 +175,18 @@ function HomeContent() {
                 </video>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* The Bottleneck */}
+        <section className="py-16 bg-muted/30">
+          <div className="container mx-auto px-6">
+            <div className="text-center mb-6">
+              <h3 className="text-3xl font-bold text-foreground">The Bottleneck</h3>
+            </div>
+            <p className="max-w-4xl mx-auto text-lg text-muted-foreground text-center">
+              You're a scaling B2B SaaS company. You're starting to attract enterprise customers. But every big deal gets stuck at the same place: the customer's massive, non-standard Excel security questionnaire. It kills your deal velocity, pulls your engineers off the product, and turns your sales team into project managers.
+            </p>
           </div>
         </section>
 
@@ -267,39 +308,29 @@ function HomeContent() {
           </div>
         </section>
 
-        {/* How it works */}
+        {/* The Secreq Workflow */}
         <section className="bg-muted/30 py-20">
           <div className="container mx-auto px-6">
             <div className="text-center mb-12">
-              <h3 className="text-3xl font-bold text-foreground mb-2">How it works (under 10 minutes)</h3>
+              <h3 className="text-3xl font-bold text-foreground mb-2">The Secreq Workflow</h3>
             </div>
-            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
-                  <Badge variant="secondary" className="mb-2">Step 1</Badge>
-                  <CardTitle className="text-lg">Upload your docs</CardTitle>
-                  <CardDescription>Policies, SOC 2/ISO docs, past questionnaires. Upload once; keep your knowledge base updated over time.</CardDescription>
+                  <CardTitle className="text-lg">Upload Anything</CardTitle>
+                  <CardDescription>Your customer's original Excel file (no matter how complex) and your existing security documents to create your Control Library.</CardDescription>
                 </CardHeader>
               </Card>
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
-                  <Badge variant="secondary" className="mb-2">Step 2</Badge>
-                  <CardTitle className="text-lg">Upload the Excel questionnaire</CardTitle>
-                  <CardDescription>Drop in your customer&apos;s Excel file. We preserve the exact formatting, complex structures, and conditional logic.</CardDescription>
+                  <CardTitle className="text-lg">AI‑Draft Answers</CardTitle>
+                  <CardDescription>Our AI suggests answers from your documents directly into a spreadsheet‑like UI, with full citations so you can verify everything.</CardDescription>
                 </CardHeader>
               </Card>
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
-                  <Badge variant="secondary" className="mb-2">Step 3</Badge>
-                  <CardTitle className="text-lg">Collaborate in the Workbench</CardTitle>
-                  <CardDescription>AI suggests answers with citations. Your team reviews, edits, comments, and assigns questions in a spreadsheet-like interface.</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="border-border/50">
-                <CardHeader className="pb-2">
-                  <Badge variant="secondary" className="mb-2">Step 4</Badge>
-                  <CardTitle className="text-lg">Export with original formatting</CardTitle>
-                  <CardDescription>Download the completed Excel file with your original formatting intact, or export to CSV.</CardDescription>
+                  <CardTitle className="text-lg">Export a Perfect File</CardTitle>
+                  <CardDescription>Download the completed questionnaire with 100% of your customer's original formatting, macros, and tabs intact. No manual rework required.</CardDescription>
                 </CardHeader>
               </Card>
             </div>
@@ -378,28 +409,28 @@ function HomeContent() {
           </div>
         </section>
 
-        {/* What makes Secreq different */}
+        {/* Why Secreq? */}
         <section className="py-20">
           <div className="container mx-auto px-6">
             <div className="text-center mb-12">
-              <h3 className="text-3xl font-bold text-foreground">What makes Secreq different</h3>
+              <h3 className="text-3xl font-bold text-foreground">Why Secreq?</h3>
             </div>
             <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 text-muted-foreground text-lg">
               <div className="space-y-2">
-                <h4 className="font-semibold text-foreground">1) Excel format preservation</h4>
-                <p>Most tools break your customer&apos;s Excel formatting. We <span className="font-semibold text-foreground">preserve every detail</span>—complex structures, conditional logic, styling—and export it back perfectly.</p>
+                <h4 className="font-semibold text-foreground">Never Break Their File</h4>
+                <p>We are obsessed with preserving your customer's original Excel formatting. This is our core promise.</p>
               </div>
               <div className="space-y-2">
-                <h4 className="font-semibold text-foreground">2) Collaborative, not automated</h4>
-                <p>We don&apos;t auto-fill questionnaires. Our <span className="font-semibold text-foreground">Workbench</span> lets your team review, edit, comment, and assign questions together with AI assistance.</p>
+                <h4 className="font-semibold text-foreground">Build a Reusable Library</h4>
+                <p>Answer once, reuse everywhere. Secreq learns from your policies and past questionnaires to create a single source of truth.</p>
               </div>
               <div className="space-y-2">
-                <h4 className="font-semibold text-foreground">3) AI with citations</h4>
-                <p>Every suggested answer shows <span className="font-semibold text-foreground">citations to your source docs</span> and a <span className="font-semibold text-foreground">confidence score</span>. No black box, no hallucinations.</p>
+                <h4 className="font-semibold text-foreground">AI with Citations</h4>
+                <p>No black boxes. Every AI‑suggested answer is traced back to your source documents, giving you full confidence and control.</p>
               </div>
               <div className="space-y-2">
-                <h4 className="font-semibold text-foreground">4) Pay only for help</h4>
-                <p>You pay <span className="font-semibold text-foreground">only</span> for questions where we provide AI suggestions. If we can&apos;t help or you leave it blank, no charge.</p>
+                <h4 className="font-semibold text-foreground">Built for Collaboration</h4>
+                <p>Your sales, security, and engineering teams can work together in a single, shared workbench to get the job done faster.</p>
               </div>
             </div>
           </div>
@@ -428,25 +459,36 @@ function HomeContent() {
           </div>
         </section>
 
-        {/* Secreq vs. the alternatives */}
+        {/* Secreq vs. All-in-One Compliance Platforms - Table */}
         <section className="py-20">
           <div className="container mx-auto px-6">
             <div className="text-center mb-12">
-              <h3 className="text-3xl font-bold text-foreground">Secreq vs. the alternatives</h3>
+              <h3 className="text-3xl font-bold text-foreground">Secreq vs. All-in-One Compliance Platforms</h3>
             </div>
-            <div className="max-w-4xl mx-auto space-y-8 text-lg text-muted-foreground">
-              <div>
-                <p className="font-semibold text-foreground">Vanta/Conveyor/Loopio</p>
-                <p>Great suites, but they break Excel formatting and require long rollouts. <span className="font-semibold text-foreground">Secreq</span> preserves your customer&apos;s exact formatting and works instantly—perfect for ad-hoc questionnaires.</p>
-              </div>
-              <div>
-                <p className="font-semibold text-foreground">Internal wiki + copy/paste</p>
-                <p>Inconsistent, slow, and you lose formatting when copying between Excel files. Secreq maintains perfect formatting while speeding up the research.</p>
-              </div>
-              <div>
-                <p className="font-semibold text-foreground">Freelancers/consultants</p>
-                <p>Helpful, but they still read your docs line‑by‑line and often mess up complex Excel formatting. Secreq gives them AI-powered research while preserving the format.</p>
-              </div>
+            <div className="max-w-6xl mx-auto">
+              <Card className="border-border/50">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[220px] text-foreground">Capability</TableHead>
+                        <TableHead>All-in-One Platforms (Vanta, Drata, etc.)</TableHead>
+                        <TableHead>Secreq (The Tactical Workbench)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {HOW_DIFFERENT_TABLE_ROWS.map((row) => (
+                        <TableRow key={row.capability}>
+                          <TableCell className="font-medium text-foreground">{row.capability}</TableCell>
+                          <TableCell className="text-muted-foreground">{row.platforms}</TableCell>
+                          <TableCell className="text-muted-foreground">{row.secreq}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                    <TableCaption>Comparison of focus and outcomes: platforms vs. Secreq.</TableCaption>
+                  </Table>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </section>
