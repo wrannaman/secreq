@@ -167,7 +167,7 @@ function DashboardContent() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".xlsx,.csv"
+                  accept=".xlsx,.csv,.xls"
                   className="hidden"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];

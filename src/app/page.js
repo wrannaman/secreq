@@ -79,18 +79,18 @@ function HomeContent() {
         <section className="container mx-auto px-6 py-20 text-center">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-5xl md:text-6xl font-bold text-foreground mb-6 tracking-tight">
-              Complete vendor security questionnaires in <span className="text-primary">minutes</span>
+              Answer once. Export everywhere. <span className="text-primary">Flawlessly.</span>
             </h2>
             <p className="text-xl md:text-2xl text-foreground font-semibold leading-relaxed">
-              AI-powered workbench that preserves formatting! No More Copy Paste! Usage‑based pricing.
+              The AI‑powered control library for security and compliance—preserving original formatting across Excel, SIG/SIG‑Lite, and CSV.
             </p>
             <div className="mt-4 mb-6 flex flex-wrap items-center justify-center gap-2">
-              <Badge variant="outline">No seats</Badge>
-              <Badge variant="outline">No contracts</Badge>
-              <Badge variant="outline">Self‑serve</Badge>
-              <Badge variant="outline">Made + hosted in USA 🇺🇸</Badge>
+              <Badge variant="outline">Control library</Badge>
+              <Badge variant="outline">Flawless exports</Badge>
+              <Badge variant="outline">AI with citations</Badge>
+              <Badge variant="outline">Usage‑based</Badge>
             </div>
-            <p className="text-base md:text-lg text-muted-foreground mb-8 leading-relaxed">Upload, collaborate, export. Your Excel format stays intact.</p>
+            <p className="text-base md:text-lg text-muted-foreground mb-8 leading-relaxed">Answer once and reuse across vendors. Your formatting stays intact.</p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <Button size="lg" asChild className="text-lg px-8 py-6">
@@ -161,15 +161,15 @@ function HomeContent() {
                 <div className="relative bg-background">
                   <Image
                     src="/add-data.gif"
-                    alt="Secreq Demo - AI filling out security questionnaires"
+                    alt="Secreq Demo - Build your control library"
                     width={1200}
                     height={675}
                     className="w-full h-auto"
                   />
                 </div>
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">Create an Answer Bank</CardTitle>
-                  <CardDescription>Upload your policies and past answers to power precise drafts with citations.</CardDescription>
+                  <CardTitle className="text-lg">Build your Control Library</CardTitle>
+                  <CardDescription>Upload policies, past answers, and controls to create a single source of truth.</CardDescription>
                 </CardHeader>
               </Card>
 
@@ -177,35 +177,35 @@ function HomeContent() {
                 <div className="relative">
                   <Image
                     src="/dash-min.png"
-                    alt="Dashboard overview"
+                    alt="Flawless exports overview"
                     width={1200}
                     height={675}
                     className="w-full h-auto"
                   />
                 </div>
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">Dashboard</CardTitle>
-                  <CardDescription>Track questionnaires, status, and progress at a glance.</CardDescription>
+                  <CardTitle className="text-lg">Flawless Exports</CardTitle>
+                  <CardDescription>Export to Excel, SIG/SIG‑Lite, or CSV without breaking original formatting.</CardDescription>
                 </CardHeader>
               </Card>
 
               <Card className="border-border/50 overflow-hidden">
                 <div className="relative">
-                  <Image src="/workbench-min.png" alt="AI Workbench formatting preserved" width={1200} height={675} className="w-full h-auto" />
+                  <Image src="/workbench-min.png" alt="Auto‑answer and review in Workbench" width={1200} height={675} className="w-full h-auto" />
                 </div>
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">AI Workbench</CardTitle>
-                  <CardDescription>Draft answers in a spreadsheet UI while preserving Excel formatting.</CardDescription>
+                  <CardTitle className="text-lg">Auto‑answer + Review</CardTitle>
+                  <CardDescription>AI drafts from your library with citations. Review and edit in a spreadsheet‑style Workbench.</CardDescription>
                 </CardHeader>
               </Card>
 
               <Card className="border-border/50 overflow-hidden">
                 <div className="relative">
-                  <Image src="/team-min.png" alt="Add your team" width={1200} height={675} className="w-full h-auto" />
+                  <Image src="/team-min.png" alt="Evidence management" width={1200} height={675} className="w-full h-auto" />
                 </div>
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">Add your Team</CardTitle>
-                  <CardDescription>Invite collaborators and work together with assignments and review.</CardDescription>
+                  <CardTitle className="text-lg">Evidence Management</CardTitle>
+                  <CardDescription>Link controls to SOC 2, pen tests, and policies to keep answers fresh.</CardDescription>
                 </CardHeader>
               </Card>
             </div>
@@ -220,32 +220,32 @@ function HomeContent() {
             <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="h-5 w-5 text-primary" /> 10–50× faster</CardTitle>
-                  <CardDescription>AI suggests answers from your policies. You review and approve in a collaborative workbench.</CardDescription>
+                  <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="h-5 w-5 text-primary" /> Central Control Library</CardTitle>
+                  <CardDescription>Answer once and reuse across vendors with audit‑ready language and citations.</CardDescription>
                 </CardHeader>
               </Card>
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-xl"><ShieldCheck className="h-5 w-5 text-primary" /> Excel format preserved</CardTitle>
-                  <CardDescription>Upload your customer&apos;s Excel file. We preserve the exact formatting, complex structures, and export it back perfectly.</CardDescription>
+                  <CardTitle className="flex items-center gap-2 text-xl"><ShieldCheck className="h-5 w-5 text-primary" /> Flawless Exports</CardTitle>
+                  <CardDescription>Excel, SIG/SIG‑Lite, CSV—original formatting preserved perfectly, every time.</CardDescription>
                 </CardHeader>
               </Card>
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-5 w-5 text-primary" /> Team collaboration</CardTitle>
-                  <CardDescription>Spreadsheet‑style <span className="font-medium text-foreground">AI Workbench</span> with comments, assignments, and bulk actions. Multiple people can work together.</CardDescription>
+                  <CardTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-5 w-5 text-primary" /> Evidence Freshness</CardTitle>
+                  <CardDescription>Link controls to SOC 2, pen tests, and policies; track currency at a glance.</CardDescription>
                 </CardHeader>
               </Card>
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-5 w-5 text-primary" /> Usage‑based pricing</CardTitle>
-                  <CardDescription>Only pay when we help with a suggested answer. First 3 questionnaires are free.</CardDescription>
+                  <CardTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-5 w-5 text-primary" /> Collaborative Workbench</CardTitle>
+                  <CardDescription>Spreadsheet‑style review, comments, and assignments with AI suggestions and citations.</CardDescription>
                 </CardHeader>
               </Card>
               <Card className="sm:col-span-2 lg:col-span-1 border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="h-5 w-5 text-primary" /> AI with citations</CardTitle>
-                  <CardDescription>Every suggested answer shows exactly which documents it came from, with confidence scores.</CardDescription>
+                  <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="h-5 w-5 text-primary" /> Mapping Across Frameworks</CardTitle>
+                  <CardDescription>Roadmap: SOC 2 ⇄ ISO ⇄ NIST mappings to reuse answers across standards.</CardDescription>
                 </CardHeader>
               </Card>
             </div>
@@ -271,35 +271,35 @@ function HomeContent() {
         <section className="bg-muted/30 py-20">
           <div className="container mx-auto px-6">
             <div className="text-center mb-12">
-              <h3 className="text-3xl font-bold text-foreground mb-2">How it works (under 10 minutes)</h3>
+              <h3 className="text-3xl font-bold text-foreground mb-2">How it works</h3>
             </div>
             <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
                   <Badge variant="secondary" className="mb-2">Step 1</Badge>
-                  <CardTitle className="text-lg">Upload your docs</CardTitle>
-                  <CardDescription>Policies, SOC 2/ISO docs, past questionnaires. Upload once; keep your knowledge base updated over time.</CardDescription>
+                  <CardTitle className="text-lg">Create your Control Library</CardTitle>
+                  <CardDescription>Import policies, past answers, and controls. Normalize language; link citations.</CardDescription>
                 </CardHeader>
               </Card>
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
                   <Badge variant="secondary" className="mb-2">Step 2</Badge>
-                  <CardTitle className="text-lg">Upload the Excel questionnaire</CardTitle>
-                  <CardDescription>Drop in your customer&apos;s Excel file. We preserve the exact formatting, complex structures, and conditional logic.</CardDescription>
+                  <CardTitle className="text-lg">Auto‑answer in the Workbench</CardTitle>
+                  <CardDescription>Drop in Excel or SIG. We draft from your library with citations for quick review.</CardDescription>
                 </CardHeader>
               </Card>
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
                   <Badge variant="secondary" className="mb-2">Step 3</Badge>
-                  <CardTitle className="text-lg">Collaborate in the Workbench</CardTitle>
-                  <CardDescription>AI suggests answers with citations. Your team reviews, edits, comments, and assigns questions in a spreadsheet-like interface.</CardDescription>
+                  <CardTitle className="text-lg">Manage Evidence</CardTitle>
+                  <CardDescription>Attach SOC 2, pen tests, and policy references to keep answers fresh.</CardDescription>
                 </CardHeader>
               </Card>
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
                   <Badge variant="secondary" className="mb-2">Step 4</Badge>
-                  <CardTitle className="text-lg">Export with original formatting</CardTitle>
-                  <CardDescription>Download the completed Excel file with your original formatting intact, or export to CSV.</CardDescription>
+                  <CardTitle className="text-lg">Export Everywhere</CardTitle>
+                  <CardDescription>Excel, SIG/SIG‑Lite, CSV—preserving the original formatting perfectly.</CardDescription>
                 </CardHeader>
               </Card>
             </div>
@@ -322,21 +322,21 @@ function HomeContent() {
                     <ul className="space-y-3 mb-6">
                       <li className="flex items-start gap-3">
                         <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                        <span className="text-sm">AI suggests answers using <em>your</em> docs</span>
+                        <span className="text-sm">Central <strong>Control Library</strong> with reusable, audit‑ready answers</span>
                       </li>
                       <li className="flex items-start gap-3">
                         <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                        <span className="text-sm"><strong>Collaborative Workbench</strong> preserves Excel format</span>
+                        <span className="text-sm">Auto‑answer with citations in a collaborative Workbench</span>
                       </li>
                       <li className="flex items-start gap-3">
                         <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                        <span className="text-sm">Unlimited teammates, no seat pricing</span>
+                        <span className="text-sm"><strong>Flawless exports</strong> to Excel, SIG/SIG‑Lite, and CSV</span>
                       </li>
                     </ul>
 
                     <div className="border-t pt-6">
                       <h4 className="text-xl font-semibold text-foreground mb-3">Pricing</h4>
-                      <p className="text-sm text-muted-foreground mb-3">Usage‑based — only pay when we help with a suggested answer.</p>
+                      <p className="text-sm text-muted-foreground mb-3">Usage‑based — pay only for AI‑drafted answers you keep.</p>
                       <ul className="space-y-2 text-sm text-muted-foreground">
                         <li className="flex items-center gap-2">
                           <CheckCircle2 className="h-4 w-4 text-primary" />
@@ -359,9 +359,9 @@ function HomeContent() {
                       Launch Bonuses
                     </h4>
                     <ul className="space-y-3 text-sm">
-                      <li><strong>Import Assist:</strong> We help ingest your policy docs</li>
-                      <li><strong>Answer Library:</strong> SOC 2, ISO 27001, CAIQ mappings</li>
-                      <li><strong>Style Guardrails:</strong> Tone/term config for your voice</li>
+                      <li><strong>Import Assist:</strong> We help ingest and normalize your control statements</li>
+                      <li><strong>Starter Mappings:</strong> SOC 2, ISO 27001, CAIQ seeds for your library</li>
+                      <li><strong>Style Guardrails:</strong> Tone and terminology aligned to your brand</li>
                     </ul>
                   </Card>
 
@@ -386,20 +386,20 @@ function HomeContent() {
             </div>
             <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 text-muted-foreground text-lg">
               <div className="space-y-2">
-                <h4 className="font-semibold text-foreground">1) Excel format preservation</h4>
-                <p>Most tools break your customer&apos;s Excel formatting. We <span className="font-semibold text-foreground">preserve every detail</span>—complex structures, conditional logic, styling—and export it back perfectly.</p>
+                <h4 className="font-semibold text-foreground">1) Control‑first architecture</h4>
+                <p>Your reusable control statements are the source of truth. Questionnaires are just outputs.</p>
               </div>
               <div className="space-y-2">
-                <h4 className="font-semibold text-foreground">2) Collaborative, not automated</h4>
-                <p>We don&apos;t auto-fill questionnaires. Our <span className="font-semibold text-foreground">Workbench</span> lets your team review, edit, comment, and assign questions together with AI assistance.</p>
+                <h4 className="font-semibold text-foreground">2) Flawless exports</h4>
+                <p>We treat SIG as a compatibility layer and preserve complex Excel formatting perfectly.</p>
               </div>
               <div className="space-y-2">
-                <h4 className="font-semibold text-foreground">3) AI with citations</h4>
-                <p>Every suggested answer shows <span className="font-semibold text-foreground">citations to your source docs</span> and a <span className="font-semibold text-foreground">confidence score</span>. No black box, no hallucinations.</p>
+                <h4 className="font-semibold text-foreground">3) Evidence‑aware</h4>
+                <p>Each answer links to evidence and shows freshness so reviewers trust what they read.</p>
               </div>
               <div className="space-y-2">
-                <h4 className="font-semibold text-foreground">4) Pay only for help</h4>
-                <p>You pay <span className="font-semibold text-foreground">only</span> for questions where we provide AI suggestions. If we can&apos;t help or you leave it blank, no charge.</p>
+                <h4 className="font-semibold text-foreground">4) Framework mapping (roadmap)</h4>
+                <p>Map controls across SOC 2, ISO 27001, and NIST for maximum reuse.</p>
               </div>
             </div>
           </div>
@@ -436,16 +436,16 @@ function HomeContent() {
             </div>
             <div className="max-w-4xl mx-auto space-y-8 text-lg text-muted-foreground">
               <div>
-                <p className="font-semibold text-foreground">Vanta/Conveyor/Loopio</p>
-                <p>Great suites, but they break Excel formatting and require long rollouts. <span className="font-semibold text-foreground">Secreq</span> preserves your customer&apos;s exact formatting and works instantly—perfect for ad-hoc questionnaires.</p>
+                <p className="font-semibold text-foreground">GRC suites (Vanta/Conveyor/Loopio)</p>
+                <p>Broad platforms, long rollouts, and exports that often break Excel/SIG formatting. Secreq focuses on flawless outputs from a central control library.</p>
               </div>
               <div>
                 <p className="font-semibold text-foreground">Internal wiki + copy/paste</p>
-                <p>Inconsistent, slow, and you lose formatting when copying between Excel files. Secreq maintains perfect formatting while speeding up the research.</p>
+                <p>Slow and error‑prone. Copying loses structure and consistency. Secreq preserves original formatting and cites sources.</p>
               </div>
               <div>
                 <p className="font-semibold text-foreground">Freelancers/consultants</p>
-                <p>Helpful, but they still read your docs line‑by‑line and often mess up complex Excel formatting. Secreq gives them AI-powered research while preserving the format.</p>
+                <p>Expert support but manual and inconsistent. Secreq provides AI‑assisted drafts with evidence and perfect exports.</p>
               </div>
             </div>
           </div>
@@ -461,32 +461,24 @@ function HomeContent() {
             </div>
             <div className="max-w-4xl mx-auto space-y-8 text-lg">
               <div>
-                <p className="font-semibold text-foreground">What file types can I upload?</p>
-                <p className="text-muted-foreground">Policies as PDF/DOCX/Markdown; questionnaires as CSV/XLSX/GS. Portal exports work fine.</p>
+                <p className="font-semibold text-foreground">What exactly is a Control Library?</p>
+                <p className="text-muted-foreground">A single source of truth for reusable, audit‑ready security answers linked to evidence.</p>
               </div>
               <div>
-                <p className="font-semibold text-foreground">What if a question needs custom info?</p>
-                <p className="text-muted-foreground">Mark it <span className="font-semibold text-foreground">Needs Info</span> or assign an owner. You’re only billed for drafted answers.</p>
+                <p className="font-semibold text-foreground">What formats can we export?</p>
+                <p className="text-muted-foreground">Excel, SIG/SIG‑Lite, and CSV—while preserving the original formatting perfectly.</p>
               </div>
               <div>
-                <p className="font-semibold text-foreground">How accurate are the answers?</p>
-                <p className="text-muted-foreground">We retrieve from your docs and show <span className="font-semibold text-foreground">citations + confidence</span>. You approve every answer.</p>
+                <p className="font-semibold text-foreground">How are answers kept fresh?</p>
+                <p className="text-muted-foreground">Attach SOC 2 reports, pen tests, and policy links; we show evidence freshness.</p>
               </div>
               <div>
-                <p className="font-semibold text-foreground">Do you store our questionnaires?</p>
-                <p className="text-muted-foreground">Yes, inside your account for reuse and audit trail. You can export everything anytime.</p>
+                <p className="font-semibold text-foreground">Can we map across frameworks?</p>
+                <p className="text-muted-foreground">Yes—roadmap includes SOC 2 ⇄ ISO ⇄ NIST mapping to maximize reuse.</p>
               </div>
               <div>
-                <p className="font-semibold text-foreground">Will you train on our data?</p>
-                <p className="text-muted-foreground">No. Your documents are used solely to serve your workspace.</p>
-              </div>
-              <div>
-                <p className="font-semibold text-foreground">Do you integrate with GRC platforms?</p>
-                <p className="text-muted-foreground">CSV/XLSX covers most pipelines today. Direct integrations are on the roadmap—tell us what you need.</p>
-              </div>
-              <div>
-                <p className="font-semibold text-foreground">What if we can’t upload documents due to policy?</p>
-                <p className="text-muted-foreground">Use <span className="font-semibold text-foreground">Redacted Mode</span> (paste only what’s needed) or join the <span className="font-semibold text-foreground">Local/CLI waitlist</span> for on‑prem processing.</p>
+                <p className="font-semibold text-foreground">How does pricing work?</p>
+                <p className="text-muted-foreground">Usage‑based; you pay only for AI‑drafted answers you keep. First 3 are free.</p>
               </div>
             </div>
           </div>
