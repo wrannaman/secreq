@@ -6,12 +6,41 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableCaption } from "@/components/ui/table";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useAuth } from "@/hooks/use-auth";
 import { PublicOnly } from "@/components/auth-guard";
 import { Shield, ArrowRight, Play, CheckCircle2, ShieldCheck, Sparkles, Gift, Quote } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+
+export const HOW_DIFFERENT_TABLE_ROWS = [
+  {
+    capability: "Primary Job",
+    platforms: "Internal Program Management",
+    secreq: "External Customer Response",
+  },
+  {
+    capability: "Core Workflow",
+    platforms: "Policy creation & evidence collection",
+    secreq: "AI-powered answer drafting & high-fidelity Excel export",
+  },
+  {
+    capability: "Primary Use Case",
+    platforms: "Getting you SOC 2 certified (a 6-9 month process)",
+    secreq: "Clearing a customer's urgent questionnaire (a 3-hour task)",
+  },
+  {
+    capability: "Key Differentiator",
+    platforms: "Broad platform for building your internal program",
+    secreq: "Preserves 100% of your customer's original Excel formatting",
+  },
+  {
+    capability: "Business Value",
+    platforms: "Lets you claim you are secure and compliant",
+    secreq: "Lets you prove it quickly to unblock a specific sales deal",
+  },
+];
 
 function HomeContent() {
   const { isAuthenticated } = useAuth();
@@ -65,7 +94,7 @@ function HomeContent() {
                     <Quote className="h-5 w-5 text-primary mt-2 flex-shrink-0" />
                     <div className="text-left">
                       <p className="text-base md:text-lg text-foreground">
-                        "With this tool I can accurately and quickly fill out securitiy requests. The latest one saved me about 4 hours and we landed a 6 figure deal!"
+                        "With this tool I can quickly fill out security requests and preserve the original formatting. The latest one saved me about 4 hours and we landed a 6 figure deal!"
                       </p>
                       <p className="mt-2 text-sm text-muted-foreground font-medium">Danny Chu — CEO, Journey.io (YC W21)</p>
                     </div>
@@ -79,23 +108,23 @@ function HomeContent() {
         <section className="container mx-auto px-6 py-20 text-center">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-5xl md:text-6xl font-bold text-foreground mb-6 tracking-tight">
-              Answer once. Export everywhere. <span className="text-primary">Flawlessly.</span>
+              The Fastest Way to Get Past Enterprise Security Review.
             </h2>
             <p className="text-xl md:text-2xl text-foreground font-semibold leading-relaxed">
-              The AI‑powered control library for security and compliance—preserving original formatting across Excel, SIG/SIG‑Lite, and CSV.
+              Secreq is the scalpel for scaling B2B teams. We combine AI‑drafting with perfect Excel formatting to get your enterprise deals un‑stuck and closed.
             </p>
             <div className="mt-4 mb-6 flex flex-wrap items-center justify-center gap-2">
-              <Badge variant="outline">Control library</Badge>
-              <Badge variant="outline">Flawless exports</Badge>
+              <Badge variant="outline">Deal Velocity</Badge>
+              <Badge variant="outline">Never breaks their file</Badge>
               <Badge variant="outline">AI with citations</Badge>
-              <Badge variant="outline">Usage‑based</Badge>
+              <Badge variant="outline">First one free</Badge>
             </div>
             <p className="text-base md:text-lg text-muted-foreground mb-8 leading-relaxed">Answer once and reuse across vendors. Your formatting stays intact.</p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <Button size="lg" asChild className="text-lg px-8 py-6">
                 <Link href="/auth/login">
-                  Start Free
+                  Clear My First Questionnaire Free
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
@@ -146,6 +175,18 @@ function HomeContent() {
                 </video>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* The Bottleneck */}
+        <section className="py-16 bg-muted/30">
+          <div className="container mx-auto px-6">
+            <div className="text-center mb-6">
+              <h3 className="text-3xl font-bold text-foreground">Your Biggest Deal Just Hit a Brick Wall.</h3>
+            </div>
+            <p className="max-w-4xl mx-auto text-lg text-muted-foreground text-center">
+              Your pipeline is finally moving. Then it happens: your enterprise champion sends “the file.” A 400‑row Excel monster that brings your motion to a dead stop. Engineers get pulled off the product, momentum dies, and your revenue forecast slips.
+            </p>
           </div>
         </section>
 
@@ -220,32 +261,32 @@ function HomeContent() {
             <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="h-5 w-5 text-primary" /> Central Control Library</CardTitle>
-                  <CardDescription>Answer once and reuse across vendors with audit‑ready language and citations.</CardDescription>
+                  <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="h-5 w-5 text-primary" /> Turn 3 Weeks into 3 Hours</CardTitle>
+                  <CardDescription>AI‑drafted answers with citations so you review, approve, and ship fast.</CardDescription>
                 </CardHeader>
               </Card>
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-xl"><ShieldCheck className="h-5 w-5 text-primary" /> Flawless Exports</CardTitle>
-                  <CardDescription>Excel, SIG/SIG‑Lite, CSV—original formatting preserved perfectly, every time.</CardDescription>
+                  <CardTitle className="flex items-center gap-2 text-xl"><ShieldCheck className="h-5 w-5 text-primary" /> Never Break Their File</CardTitle>
+                  <CardDescription>The #1 rejection reason is broken formatting. We preserve their original file perfectly.</CardDescription>
                 </CardHeader>
               </Card>
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-5 w-5 text-primary" /> Evidence Freshness</CardTitle>
-                  <CardDescription>Link controls to SOC 2, pen tests, and policies; track currency at a glance.</CardDescription>
+                  <CardTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-5 w-5 text-primary" /> Stop Derailing Engineers</CardTitle>
+                  <CardDescription>Keep product moving. Review in a spreadsheet‑style workbench without pulling devs.</CardDescription>
                 </CardHeader>
               </Card>
               <Card className="border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-5 w-5 text-primary" /> Collaborative Workbench</CardTitle>
-                  <CardDescription>Spreadsheet‑style review, comments, and assignments with AI suggestions and citations.</CardDescription>
+                  <CardTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-5 w-5 text-primary" /> Approve on the First Pass</CardTitle>
+                  <CardDescription>Preserve complex Excel, SIG/SIG‑Lite, and CSV formatting so reviewers say “yes.”</CardDescription>
                 </CardHeader>
               </Card>
               <Card className="sm:col-span-2 lg:col-span-1 border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="h-5 w-5 text-primary" /> Mapping Across Frameworks</CardTitle>
-                  <CardDescription>Roadmap: SOC 2 ⇄ ISO ⇄ NIST mappings to reuse answers across standards.</CardDescription>
+                  <CardTitle className="flex items-center gap-2 text-xl"><Sparkles className="h-5 w-5 text-primary" /> Build a Reusable Control Library</CardTitle>
+                  <CardDescription>Answer once. Reuse across vendors with audit‑ready language and citations.</CardDescription>
                 </CardHeader>
               </Card>
             </div>
@@ -267,7 +308,7 @@ function HomeContent() {
           </div>
         </section>
 
-        {/* How it works */}
+        {/* The Secreq Workflow */}
         <section className="bg-muted/30 py-20">
           <div className="container mx-auto px-6">
             <div className="text-center mb-12">
@@ -310,7 +351,7 @@ function HomeContent() {
         <section className="bg-muted/30 py-16">
           <div className="container mx-auto px-6">
             <div className="text-center mb-12">
-              <h3 className="text-3xl font-bold text-foreground mb-4">Our Offer</h3>
+              <h3 className="text-3xl font-bold text-foreground mb-4">Your First One is On Us.</h3>
             </div>
 
             <div className="max-w-5xl mx-auto">
@@ -318,36 +359,21 @@ function HomeContent() {
                 {/* Left column - Core + Pricing */}
                 <div>
                   <Card className="p-6">
-                    <h4 className="text-xl font-semibold text-foreground mb-4">Core</h4>
-                    <ul className="space-y-3 mb-6">
+                    <h4 className="text-xl font-semibold text-foreground mb-4">What We'll Do</h4>
+                    <ul className="space-y-3">
                       <li className="flex items-start gap-3">
                         <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                        <span className="text-sm">Central <strong>Control Library</strong> with reusable, audit‑ready answers</span>
+                        <span className="text-sm">Upload the file that's stalling your deal. We'll draft answers with citations.</span>
                       </li>
                       <li className="flex items-start gap-3">
                         <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                        <span className="text-sm">Auto‑answer with citations in a collaborative Workbench</span>
+                        <span className="text-sm">We preserve the original Excel/SIG formatting so it passes first review.</span>
                       </li>
                       <li className="flex items-start gap-3">
                         <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                        <span className="text-sm"><strong>Flawless exports</strong> to Excel, SIG/SIG‑Lite, and CSV</span>
+                        <span className="text-sm">You review in a spreadsheet‑style workbench and ship.</span>
                       </li>
                     </ul>
-
-                    <div className="border-t pt-6">
-                      <h4 className="text-xl font-semibold text-foreground mb-3">Pricing</h4>
-                      <p className="text-sm text-muted-foreground mb-3">Usage‑based — pay only for AI‑drafted answers you keep.</p>
-                      <ul className="space-y-2 text-sm text-muted-foreground">
-                        <li className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-primary" />
-                          <span><strong>First 3 questionnaires free</strong></span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-primary" />
-                          <span>Never pay for blanks or questions we can&apos;t help with</span>
-                        </li>
-                      </ul>
-                    </div>
                   </Card>
                 </div>
 
@@ -356,20 +382,16 @@ function HomeContent() {
                   <Card className="p-6">
                     <h4 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
                       <Gift className="h-5 w-5 text-primary" />
-                      Launch Bonuses
+                      What It Costs
                     </h4>
-                    <ul className="space-y-3 text-sm">
-                      <li><strong>Import Assist:</strong> We help ingest and normalize your control statements</li>
-                      <li><strong>Starter Mappings:</strong> SOC 2, ISO 27001, CAIQ seeds for your library</li>
-                      <li><strong>Style Guardrails:</strong> Tone and terminology aligned to your brand</li>
-                    </ul>
+                    <p className="text-sm text-muted-foreground">Your first questionnaire is free. No credit card. No commitment. Our only goal is to prove we can get your deal moving again.</p>
                   </Card>
 
                   <Card className="p-6 border-primary/20">
                     <h4 className="text-lg font-semibold text-foreground mb-3">Simple Guarantee</h4>
-                    <p className="text-sm text-muted-foreground mb-4">If your first draft isn&apos;t faster than manual work, keep the <strong>3 free questionnaires</strong> and walk away.</p>
+                    <p className="text-sm text-muted-foreground mb-4">If this isn't faster than manual work, walk away. No strings.</p>
                     <Button size="lg" asChild className="w-full">
-                      <Link href="/auth/login">Start Free <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                      <Link href="/auth/login">Unblock My Deal <ArrowRight className="ml-2 h-4 w-4" /></Link>
                     </Button>
                   </Card>
                 </div>
@@ -378,11 +400,11 @@ function HomeContent() {
           </div>
         </section>
 
-        {/* What makes Secreq different */}
+        {/* Why Secreq? */}
         <section className="py-20">
           <div className="container mx-auto px-6">
             <div className="text-center mb-12">
-              <h3 className="text-3xl font-bold text-foreground">What makes Secreq different</h3>
+              <h3 className="text-3xl font-bold text-foreground">Why Secreq?</h3>
             </div>
             <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 text-muted-foreground text-lg">
               <div className="space-y-2">
@@ -398,8 +420,8 @@ function HomeContent() {
                 <p>Each answer links to evidence and shows freshness so reviewers trust what they read.</p>
               </div>
               <div className="space-y-2">
-                <h4 className="font-semibold text-foreground">4) Framework mapping (roadmap)</h4>
-                <p>Map controls across SOC 2, ISO 27001, and NIST for maximum reuse.</p>
+                <h4 className="font-semibold text-foreground">4) Pay only for help</h4>
+                <p>You pay <span className="font-semibold text-foreground">only</span> for questions where we provide AI suggestions. If we can&apos;t help or you leave it blank, no charge.</p>
               </div>
             </div>
           </div>
@@ -428,25 +450,32 @@ function HomeContent() {
           </div>
         </section>
 
-        {/* Secreq vs. the alternatives */}
+        {/* Secreq vs. All-in-One Compliance Platforms - Table */}
         <section className="py-20">
           <div className="container mx-auto px-6">
             <div className="text-center mb-12">
-              <h3 className="text-3xl font-bold text-foreground">Secreq vs. the alternatives</h3>
+              <h3 className="text-3xl font-bold text-foreground">Secreq vs. All-in-One Compliance Platforms</h3>
             </div>
-            <div className="max-w-4xl mx-auto space-y-8 text-lg text-muted-foreground">
-              <div>
-                <p className="font-semibold text-foreground">GRC suites (Vanta/Conveyor/Loopio)</p>
-                <p>Broad platforms, long rollouts, and exports that often break Excel/SIG formatting. Secreq focuses on flawless outputs from a central control library.</p>
-              </div>
-              <div>
-                <p className="font-semibold text-foreground">Internal wiki + copy/paste</p>
-                <p>Slow and error‑prone. Copying loses structure and consistency. Secreq preserves original formatting and cites sources.</p>
-              </div>
-              <div>
-                <p className="font-semibold text-foreground">Freelancers/consultants</p>
-                <p>Expert support but manual and inconsistent. Secreq provides AI‑assisted drafts with evidence and perfect exports.</p>
-              </div>
+            <div className="max-w-4xl mx-auto">
+              <Table>
+                <TableCaption>Where Secreq fits alongside all‑in‑one compliance platforms</TableCaption>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Capability</TableHead>
+                    <TableHead>All‑in‑one platforms</TableHead>
+                    <TableHead>Secreq</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {HOW_DIFFERENT_TABLE_ROWS.map(({ capability, platforms, secreq }) => (
+                    <TableRow key={capability}>
+                      <TableCell className="font-medium">{capability}</TableCell>
+                      <TableCell>{platforms}</TableCell>
+                      <TableCell>{secreq}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           </div>
         </section>
@@ -477,8 +506,8 @@ function HomeContent() {
                 <p className="text-muted-foreground">Yes—roadmap includes SOC 2 ⇄ ISO ⇄ NIST mapping to maximize reuse.</p>
               </div>
               <div>
-                <p className="font-semibold text-foreground">How does pricing work?</p>
-                <p className="text-muted-foreground">Usage‑based; you pay only for AI‑drafted answers you keep. First 3 are free.</p>
+                <p className="font-semibold text-foreground">What does it cost to try?</p>
+                <p className="text-muted-foreground">Your first real questionnaire is free—no credit card, no commitment.</p>
               </div>
             </div>
           </div>
@@ -488,11 +517,11 @@ function HomeContent() {
         <section className="bg-muted/30 py-20">
           <div className="container mx-auto px-6 text-center">
             <div className="max-w-3xl mx-auto">
-              <h3 className="text-4xl font-bold text-foreground mb-6">Stop losing weeks to copy‑paste. <span className="text-primary">Upload your next questionnaire and watch Secreq draft it in minutes.</span></h3>
-              <p className="text-xl text-muted-foreground mb-8">Usage‑based. First 3 questionnaires free.</p>
+              <h3 className="text-4xl font-bold text-foreground mb-6">That security questionnaire is killing your deal. <span className="text-primary">Send us the file—let’s un‑stall it today.</span></h3>
+              <p className="text-xl text-muted-foreground mb-8">Your first real questionnaire is free. No credit card.</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button size="lg" asChild className="text-lg px-12 py-6">
-                  <Link href="/auth/login">Start Free<ArrowRight className="ml-2 h-5 w-5" /></Link>
+                  <Link href="/auth/login">Unblock My Deal<ArrowRight className="ml-2 h-5 w-5" /></Link>
                 </Button>
                 <Button size="lg" variant="outline" className="text-lg px-12 py-6" onClick={() => setShowDemo(true)}>
                   <Play className="mr-2 h-5 w-5" /> Watch 90‑sec Demo
